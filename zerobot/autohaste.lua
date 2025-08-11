@@ -28,7 +28,7 @@ local OPACITY_OFF = 0.5 -- Semi-transparent
 
 
 -- This variable tracks whether the auto-haste is active.
-local isAutoHasteActive = false
+local isAutoHasteActive = true
 
 -- This will hold our HUD object.
 local hasteIcon = nil
@@ -94,7 +94,7 @@ hasteIcon = HUD.new(ICON_POSITION_X, ICON_POSITION_Y, ICON_ITEM_ID, true) --
 
 if hasteIcon then
     -- Set the icon's initial state to OFF (semi-transparent).
-    hasteIcon:setOpacity(OPACITY_OFF) --
+    hasteIcon:setOpacity(OPACITY_ON) --
 
     -- Assign our toggleHaste function to be called when the icon is clicked.
     hasteIcon:setCallback(toggleHaste) --
