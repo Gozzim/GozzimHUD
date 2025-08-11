@@ -21,7 +21,7 @@ local ICON_POSITION_X = 10
 local ICON_POSITION_Y = 480
 
 -- How far from the player to scan for water tiles.
-local MAX_FISHING_DISTANCE = 3
+local MAX_FISHING_DISTANCE = 6
 
 -- Opacity for the icon when ON vs OFF.
 local OPACITY_ON = 1.0
