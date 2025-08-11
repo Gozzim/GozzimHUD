@@ -10,7 +10,7 @@ local ICON_POSITION_X = 10
 local ICON_POSITION_Y = 120
 
 -- How often the polling loop checks your movement (in milliseconds).
-local POLLING_RATE_MS = 100
+local POLLING_RATE_MS = 50
 
 -- How many tiles ahead the polling loop checks for doors.
 local LOOKAHEAD_DISTANCE = 2
