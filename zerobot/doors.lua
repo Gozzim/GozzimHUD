@@ -2,12 +2,12 @@
 -- Automatically opens doors when you walk towards them.
 
 -- #################### CONFIGURATION ####################
--- Item ID for the HUD icon. A door seems appropriate.
-local ICON_ITEM_ID = 5007
+-- Item ID for the HUD icon.
+local ICON_ITEM_ID = 12305
 
 -- Position of the icon on the screen.
 local ICON_POSITION_X = 10
-local ICON_POSITION_Y = 480 -- Positioned below the other icons
+local ICON_POSITION_Y = 120
 
 -- Opacity for the icon when ON vs OFF.
 local OPACITY_ON = 1.0  -- Fully visible
@@ -25,7 +25,7 @@ local doorsSet = {
 }
 
 -- State tracking variables
-local isAutoDoorActive = false
+local isAutoDoorActive = true
 local autoDoorIcon = nil
 
 -- This function is called when the HUD icon is clicked.
@@ -81,7 +81,7 @@ local function onHotkeyPress(key, modifier)
         nextPos.x = nextPos.x - 1; keyFound = true
     elseif key == HotkeyManager.keyMapping["right"] or key == HotkeyManager.keyMapping["d"] then
         nextPos.x = nextPos.x + 1; keyFound = true
-    -- Diagonal checks (like OTCv8)
+        -- Diagonal checks (like OTCv8)
     elseif key == HotkeyManager.keyMapping["q"] then
         nextPos.x = nextPos.x - 1; nextPos.y = nextPos.y - 1; keyFound = true
     elseif key == HotkeyManager.keyMapping["e"] then
@@ -104,7 +104,7 @@ end
 autoDoorIcon = HUD.new(ICON_POSITION_X, ICON_POSITION_Y, ICON_ITEM_ID, true)
 
 if autoDoorIcon then
-    autoDoorIcon:setOpacity(OPACITY_OFF)
+    autoDoorIcon:setOpacity(OPACITY_ON)
     autoDoorIcon:setCallback(toggleAutoDoor)
 
     -- Register the event listener for hotkey presses.
