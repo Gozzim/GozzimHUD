@@ -1,5 +1,5 @@
--- Auto Door Opener for Zerobot
--- Automatically opens doors when you walk towards them.
+-- Auto Door Opener for Zerobot (Hybrid High-Speed Version)
+-- Combines a key-press handler for responsiveness and a polling loop for seamless running.
 
 -- #################### CONFIGURATION ####################
 -- Item ID for the HUD icon.
@@ -9,9 +9,15 @@ local ICON_ITEM_ID = 12305
 local ICON_POSITION_X = 10
 local ICON_POSITION_Y = 120
 
+-- How often the polling loop checks your movement (in milliseconds).
+local POLLING_RATE_MS = 100
+
+-- How many tiles ahead the polling loop checks for doors.
+local LOOKAHEAD_DISTANCE = 2
+
 -- Opacity for the icon when ON vs OFF.
-local OPACITY_ON = 1.0  -- Fully visible
-local OPACITY_OFF = 0.5 -- Semi-transparent
+local OPACITY_ON = 1.0
+local OPACITY_OFF = 0.5
 -- ######################################################
 
 
@@ -27,6 +33,7 @@ local doorsSet = {
 -- State tracking variables
 local isAutoDoorActive = true
 local autoDoorIcon = nil
+local lastPosition = nil
 
 -- This function is called when the HUD icon is clicked.
 local function toggleAutoDoor()
@@ -42,62 +49,76 @@ end
 
 -- This function checks for a door at a given position and opens it.
 local function openDoorAt(pos)
-    -- Get all items on the target tile.
     local thingsOnTile = Map.getThings(pos.x, pos.y, pos.z)
     if not thingsOnTile then return end
 
-    -- Check if any item on the tile is a door from our list.
     for _, thing in ipairs(thingsOnTile) do
         if doorsSet[thing.id] then
-            -- Found a door, use the item at that position.
             Game.useItemFromGround(pos.x, pos.y, pos.z)
-            -- Stop checking this tile once a door is found and used.
-            return
+            return -- Stop checking this tile once a door is found and used.
         end
     end
 end
 
--- This function listens for movement key presses.
+-- ==================== SYSTEM 1: INSTANT KEY-PRESS HANDLER ====================
+-- This provides perfect responsiveness for the first step from a standstill.
 local function onHotkeyPress(key, modifier)
-    -- Only run if the feature is toggled on.
     if not isAutoDoorActive then return end
 
-    -- Get the player's current position.
     local myPlayer = Creature(Player.getId())
     if not myPlayer then return end
     local currentPos = myPlayer:getPosition()
     if not currentPos then return end
 
-    -- Create a copy of the position to calculate the next step.
-    local nextPos = {x = currentPos.x, y = currentPos.y, z = currentPos.z}
-    local keyFound = false
+    local destPos = {x = currentPos.x, y = currentPos.y, z = currentPos.z}
+    local moved = false
 
     -- Check which movement key was pressed and calculate the destination tile.
     if key == HotkeyManager.keyMapping["up"] or key == HotkeyManager.keyMapping["w"] then
-        nextPos.y = nextPos.y - 1; keyFound = true
+        destPos.y = destPos.y - 1; moved = true
     elseif key == HotkeyManager.keyMapping["down"] or key == HotkeyManager.keyMapping["s"] then
-        nextPos.y = nextPos.y + 1; keyFound = true
+        destPos.y = destPos.y + 1; moved = true
     elseif key == HotkeyManager.keyMapping["left"] or key == HotkeyManager.keyMapping["a"] then
-        nextPos.x = nextPos.x - 1; keyFound = true
+        destPos.x = destPos.x - 1; moved = true
     elseif key == HotkeyManager.keyMapping["right"] or key == HotkeyManager.keyMapping["d"] then
-        nextPos.x = nextPos.x + 1; keyFound = true
-        -- Diagonal checks (like OTCv8)
+        destPos.x = destPos.x + 1; moved = true
     elseif key == HotkeyManager.keyMapping["q"] then
-        nextPos.x = nextPos.x - 1; nextPos.y = nextPos.y - 1; keyFound = true
+        destPos.x = destPos.x - 1; destPos.y = destPos.y - 1; moved = true
     elseif key == HotkeyManager.keyMapping["e"] then
-        nextPos.x = nextPos.x + 1; nextPos.y = nextPos.y - 1; keyFound = true
+        destPos.x = destPos.x + 1; destPos.y = destPos.y - 1; moved = true
     elseif key == HotkeyManager.keyMapping["z"] then
-        nextPos.x = nextPos.x - 1; nextPos.y = nextPos.y + 1; keyFound = true
+        destPos.x = destPos.x - 1; destPos.y = destPos.y + 1; moved = true
     elseif key == HotkeyManager.keyMapping["c"] then
-        nextPos.x = nextPos.x + 1; nextPos.y = nextPos.y + 1; keyFound = true
+        destPos.x = destPos.x + 1; destPos.y = destPos.y + 1; moved = true
     end
 
-    -- If a movement key was pressed, check the destination tile for a door.
-    if keyFound then
-        openDoorAt(nextPos)
+    if moved then
+        openDoorAt(destPos)
     end
 end
 
+
+-- ==================== SYSTEM 2: PROACTIVE POLLING LOOP ====================
+-- This provides seamless door opening when running continuously.
+local function mainDoorLoop()
+    if not isAutoDoorActive then return end
+
+    local myPlayer = Creature(Player.getId())
+    if not myPlayer then return end
+    local currentPos = myPlayer:getPosition()
+    if not currentPos then return end
+
+    if lastPosition and (currentPos.x ~= lastPosition.x or currentPos.y ~= lastPosition.y) then
+        local dx = currentPos.x - lastPosition.x
+        local dy = currentPos.y - lastPosition.y
+
+        for i = 1, LOOKAHEAD_DISTANCE do
+            local lookaheadPos = { x = currentPos.x + (dx * i), y = currentPos.y + (dy * i), z = currentPos.z }
+            openDoorAt(lookaheadPos)
+        end
+    end
+    lastPosition = currentPos
+end
 
 -- ################# SCRIPT INITIALIZATION #################
 
@@ -107,10 +128,11 @@ if autoDoorIcon then
     autoDoorIcon:setOpacity(OPACITY_ON)
     autoDoorIcon:setCallback(toggleAutoDoor)
 
-    -- Register the event listener for hotkey presses.
-    Game.registerEvent(Game.Events.HOTKEY_SHORTCUT_PRESS, onHotkeyPress)
+    -- Register BOTH systems to run in parallel.
+    Game.registerEvent(Game.Events.HOTKEY_SHORTCUT_PRESS, onHotkeyPress) -- System 1
+    Timer.new("ProactiveDoorTimer", mainDoorLoop, POLLING_RATE_MS, true) -- System 2
 
-    print(">> Auto Door Opener HUD loaded. Click the door icon to toggle.")
+    print(">> Auto Door Opener (Hybrid) HUD loaded.")
 else
     print(">> ERROR: Failed to create Auto Door Opener HUD.")
 end
