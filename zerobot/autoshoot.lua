@@ -6,8 +6,8 @@
 local ICON_ITEM_ID = 3155
 
 -- Position of the icon on the screen.
-local ICON_POSITION_X = 10
-local ICON_POSITION_Y = 280 -- Positioned below the other icons
+local ICON_POSITION_X = 50
+local ICON_POSITION_Y = 240
 
 -- How often to check for external changes (in milliseconds).
 -- This ensures the icon updates if you change the setting manually in the bot UI.
