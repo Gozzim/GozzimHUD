@@ -1,5 +1,6 @@
 -- Vocation-Aware Haste Toggle HUD for Zerobot
--- Creates a clickable icon that automatically selects the correct haste spell.
+-- Creates a clickable icon that automatically selects the correct haste spell
+-- and will not cast while in a Protection Zone.
 
 -- #################### CONFIGURATION ####################
 -- Haste spell for Knights and Paladins
@@ -11,7 +12,7 @@ local STRONG_HASTE_SPELL = "utani gran hur"
 local STRONG_MANA_COST = 100
 
 -- How often the script checks to recast haste (in milliseconds).
-local RECAST_INTERVAL_MS = 500
+local RECAST_INTERVAL_MS = 100
 
 -- Item ID for the icon. Boots of Haste (3079) is a good choice.
 local ICON_ITEM_ID = 3079
@@ -70,7 +71,9 @@ local function castHasteIfNeeded()
 
     -- Check all conditions before casting.
     local canCast = true
-    if Player.getState(Enums.States.STATE_HASTE) then --
+    if Player.getState(Enums.States.STATE_PIGEON) then --
+        canCast = false -- In a protection zone (indicated by the pigeon state).
+    elseif Player.getState(Enums.States.STATE_HASTE) then --
         canCast = false -- Already hasted.
     elseif Player.getMana() < manaCostForSpell then --
         canCast = false -- Not enough mana.
@@ -87,7 +90,6 @@ end
 -- ################# SCRIPT INITIALIZATION #################
 
 -- Create the HUD icon using the item ID and position from the config.
--- The 'true' argument enables new features like opacity and click handling.
 hasteIcon = HUD.new(ICON_POSITION_X, ICON_POSITION_Y, ICON_ITEM_ID, true) --
 
 if hasteIcon then
@@ -101,7 +103,7 @@ if hasteIcon then
     Timer.new("HasteTimer", castHasteIfNeeded, RECAST_INTERVAL_MS, true) --
 
     -- Print a confirmation message in the Zerobot console.
-    print(">> Vocation-Aware Haste HUD loaded. Click the boots icon to toggle.") --
+    print(">> Haste HUD loaded.") --
 else
     print(">> ERROR: Failed to create Haste Toggle HUD.") --
 end
