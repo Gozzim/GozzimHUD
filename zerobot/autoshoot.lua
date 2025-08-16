@@ -1,10 +1,7 @@
--- Rune Max Toggle HUD for Zerobot
--- Creates a clickable icon to enable/disable the "Rune Max" PvP tool.
+-- Rune Max Toggle HUD for Zerobot (Dynamic Icon)
+-- Automatically uses the icon of the rune set in the ZeroBot Rune Max configuration.
 
 -- #################### CONFIGURATION ####################
--- Item ID for the icon. A Sudden Death Rune (3155) is a good choice.
-local ICON_ITEM_ID = 3155
-
 -- Position of the icon on the screen.
 local ICON_POSITION_X = 50
 local ICON_POSITION_Y = 240
@@ -14,36 +11,42 @@ local ICON_POSITION_Y = 240
 local SYNC_INTERVAL_MS = 200
 
 -- Opacity for the icon when ON vs OFF.
-local OPACITY_ON = 1.0  -- Fully visible
-local OPACITY_OFF = 0.5 -- Semi-transparent
+local OPACITY_ON = 1.0
+local OPACITY_OFF = 0.5
 -- ######################################################
 
 
--- This will hold our HUD object.
+-- State tracking variables
 local runeMaxIcon = nil
+local currentIconId = 0 -- This will track the item ID currently shown on the HUD.
 
--- This function updates the icon's appearance based on the bot's setting.
+-- This function now updates both the icon's appearance (item) and its state (opacity).
 local function updateIconState()
     if not runeMaxIcon then return end
 
-    if Engine.isRuneMaxEnabled() then
-        -- If enabled, make the icon fully visible.
-        runeMaxIcon:setOpacity(OPACITY_ON)
+    -- Get the rune ID currently configured in ZeroBot's Rune Max tool.
+    local configuredRuneId = Engine.getRuneMaxId() --
+
+    -- If the configured rune is different from our current icon, update the icon.
+    if configuredRuneId ~= 0 and configuredRuneId ~= currentIconId then
+        runeMaxIcon:setItemId(configuredRuneId) --
+        currentIconId = configuredRuneId
+        print(">> Rune Max icon updated to item ID: " .. configuredRuneId)
+    end
+
+    -- Update the icon's opacity based on whether the feature is enabled.
+    if Engine.isRuneMaxEnabled() then --
+        runeMaxIcon:setOpacity(OPACITY_ON) --
     else
-        -- If disabled, make the icon semi-transparent.
-        runeMaxIcon:setOpacity(OPACITY_OFF)
+        runeMaxIcon:setOpacity(OPACITY_OFF) --
     end
 end
 
 -- This function is called when the HUD icon is clicked.
 local function toggleRuneMax()
-    -- Check the current state of the "Rune Max" option.
-    local isCurrentlyEnabled = Engine.isRuneMaxEnabled()
+    local isCurrentlyEnabled = Engine.isRuneMaxEnabled() --
+    Engine.runeMaxEnable(not isCurrentlyEnabled) --
 
-    -- Set the option to the opposite of its current state.
-    Engine.runeMaxEnable(not isCurrentlyEnabled)
-
-    -- Give the engine a moment to process the change, then update the icon and print a message.
     Timer.new("UpdateRuneMaxIconDelay", function()
         updateIconState()
         if not isCurrentlyEnabled then
@@ -51,28 +54,29 @@ local function toggleRuneMax()
         else
             print(">> Rune Max DISABLED.")
         end
-    end, 100, false) -- Runs once after 100ms
+    end, 100, false) --
 end
 
 
 -- ################# SCRIPT INITIALIZATION #################
 
--- Create the HUD icon using the item ID and position from the config.
-runeMaxIcon = HUD.new(ICON_POSITION_X, ICON_POSITION_Y, ICON_ITEM_ID, true)
+-- Get the initial rune ID to create the icon for the first time.
+local initialRuneId = Engine.getRuneMaxId() --
+if initialRuneId == 0 then
+    -- Default to an SD rune if no rune is configured yet.
+    initialRuneId = 3155
+    print(">> Rune Max: No rune configured. Defaulting to SD icon.")
+end
+currentIconId = initialRuneId
+
+runeMaxIcon = HUD.new(ICON_POSITION_X, ICON_POSITION_Y, currentIconId, true) --
 
 if runeMaxIcon then
-    -- Set the icon's click action to our toggle function.
-    runeMaxIcon:setCallback(toggleRuneMax)
+    runeMaxIcon:setCallback(toggleRuneMax) --
+    updateIconState() -- Set the initial appearance and state.
+    Timer.new("RuneMaxSyncTimer", updateIconState, SYNC_INTERVAL_MS, true) --
 
-    -- Set the initial appearance of the icon when the script loads.
-    updateIconState()
-
-    -- Create a recurring timer to keep the icon's state synchronized.
-    -- This handles cases where the user changes the setting manually in the UI.
-    Timer.new("RuneMaxSyncTimer", updateIconState, SYNC_INTERVAL_MS, true)
-
-    -- Print a confirmation message in the Zerobot console.
-    print(">> Rune Max Toggle HUD loaded. Click the SD icon to toggle.")
+    print(">> Dynamic Rune Max Toggle HUD loaded. Icon will match your configuration.")
 else
-    print(">> ERROR: Failed to create Rune Max Toggle HUD.")
+    print(">> ERROR: Failed to create Dynamic Rune Max Toggle HUD.")
 end

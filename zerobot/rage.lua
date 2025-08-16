@@ -19,8 +19,8 @@ local CHECK_INTERVAL_MS = 500
 local ICON_ITEM_ID = 7439
 
 -- Position of the icon on the screen.
-local ICON_POSITION_X = 10
-local ICON_POSITION_Y = 280
+local ICON_POSITION_X = 50
+local ICON_POSITION_Y = 240
 
 -- Opacity for the icon when ON vs OFF.
 local OPACITY_ON = 1.0  -- Fully visible
@@ -71,7 +71,7 @@ local function castUtitoIfNeeded()
                         isPlayerThreatNearby = true
                         break -- Found a threat, no need to check further.
                     end
-                -- Count the number of monsters.
+                    -- Count the number of monsters.
                 elseif creatureType == Enums.CreatureTypes.CREATURETYPE_MONSTER then
                     monsterCount = monsterCount + 1
                 end
