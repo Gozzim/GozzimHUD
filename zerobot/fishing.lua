@@ -1,9 +1,8 @@
--- Auto-Fishing Script for Zerobot (State Machine Version)
--- Uses a reliable timer-based state machine that cannot get stuck.
+-- Auto-Fishing Script for Zerobot
+-- Worm count text color changes based on the script's active state.
 
 -- #################### CONFIGURATION ####################
 -- The time in seconds to wait after a cast before trying again.
--- This should be a few seconds longer than a typical fishing attempt.
 local FISHING_TIMEOUT_SECONDS = 1
 
 -- How often the main loop runs (in milliseconds).
@@ -16,16 +15,23 @@ local ICON_ITEM_ID = 3483
 local FISHING_ROD_ID = 3483
 local WORM_ID = 3492
 
--- Position of the icon on the screen.
+-- Position of the main fishing icon on the screen.
 local ICON_POSITION_X = 10
 local ICON_POSITION_Y = 480
 
--- How far from the player to scan for water tiles.
-local MAX_FISHING_DISTANCE = 6
+-- Position for the worm count text, manually centered below the 32x32 icon.
+local ICON_WIDTH = 32
+local ICON_HEIGHT = 32
+local COUNT_POSITION_X = (ICON_POSITION_X + ICON_WIDTH / 2) - 12
+local COUNT_POSITION_Y = ICON_POSITION_Y + ICON_HEIGHT - 10
 
 -- Opacity for the icon when ON vs OFF.
 local OPACITY_ON = 1.0
 local OPACITY_OFF = 0.5
+
+-- NEW: Colors for the worm count text.
+local COLOR_ACTIVE = {r=255, g=255, b=255} -- White
+local COLOR_INACTIVE = {r=150, g=150, b=150} -- Grey
 -- ######################################################
 
 -- A set of known water tile IDs for fast checking.
@@ -38,30 +44,31 @@ local waterTileIds = {
 -- State tracking variables
 local isFishingActive = false
 local fishingIcon = nil
-local fishingState = "IDLE" -- Can be "IDLE" or "WAITING"
+local wormCountHud = nil
+local lastWormCount = -1
+local fishingState = "IDLE"
 local castTimestamp = 0
 
 -- This function finds a random spot and casts the line.
--- It returns true on success, false on failure.
 local function findSpotAndCast()
-    if Game.getItemCount(FISHING_ROD_ID) == 0 then
+    if Game.getItemCount(FISHING_ROD_ID) == 0 then --
         print(">> Auto-Fishing: No fishing rod found.")
         return false
     end
-    if Game.getItemCount(WORM_ID) == 0 then
+    if Game.getItemCount(WORM_ID) == 0 then --
         print(">> Auto-Fishing: Out of worms!")
         return false
     end
 
-    local myPlayer = Creature(Player.getId())
+    local myPlayer = Creature(Player.getId()) --
     if not myPlayer then return false end
-    local myPos = myPlayer:getPosition()
+    local myPos = myPlayer:getPosition() --
     if not myPos then return false end
 
     local fishableSpots = {}
-    for scanX = myPos.x - MAX_FISHING_DISTANCE, myPos.x + MAX_FISHING_DISTANCE do
-        for scanY = myPos.y - MAX_FISHING_DISTANCE, myPos.y + MAX_FISHING_DISTANCE do
-            local thingsOnTile = Map.getThings(scanX, scanY, myPos.z)
+    for scanX = myPos.x - 3, myPos.x + 3 do
+        for scanY = myPos.y - 3, myPos.y + 3 do
+            local thingsOnTile = Map.getThings(scanX, scanY, myPos.z) --
             if thingsOnTile and #thingsOnTile > 0 then
                 if waterTileIds[thingsOnTile[1].id] then
                     table.insert(fishableSpots, {x = scanX, y = scanY, z = myPos.z})
@@ -73,7 +80,7 @@ local function findSpotAndCast()
     if #fishableSpots > 0 then
         local targetSpot = fishableSpots[math.random(#fishableSpots)]
         print(">> Casting at X: " .. targetSpot.x .. ", Y: " .. targetSpot.y)
-        Game.useItemOnGround(FISHING_ROD_ID, targetSpot.x, targetSpot.y, targetSpot.z)
+        Game.useItemOnGround(FISHING_ROD_ID, targetSpot.x, targetSpot.y, targetSpot.z) --
         return true -- Successfully cast
     else
         print(">> No fishable water spots found on screen.")
@@ -83,23 +90,27 @@ end
 
 -- This is the main loop, driven by a timer.
 local function fishingLoop()
+    -- Update the worm count display, regardless of whether fishing is active.
+    if wormCountHud then
+        local currentWormCount = Game.getItemCount(WORM_ID) --
+        if currentWormCount ~= lastWormCount then
+            wormCountHud:setText(tostring(currentWormCount)) --
+            lastWormCount = currentWormCount
+        end
+    end
+
     if not isFishingActive then return end
 
     if fishingState == "IDLE" then
-        -- Try to cast.
         if findSpotAndCast() then
-            -- If successful, enter the WAITING state.
             fishingState = "WAITING"
             castTimestamp = os.clock()
         else
-            -- If we failed (e.g., no worms), disable the script.
             toggleFishing()
         end
     elseif fishingState == "WAITING" then
-        -- Check if the timeout has passed.
         if os.clock() - castTimestamp > FISHING_TIMEOUT_SECONDS then
             print(">> Fishing timer finished. Finding new spot...")
-            -- Reset to IDLE to trigger a new cast on the next loop.
             fishingState = "IDLE"
         end
     end
@@ -109,26 +120,31 @@ end
 toggleFishing = function()
     isFishingActive = not isFishingActive
     if isFishingActive then
-        fishingIcon:setOpacity(OPACITY_ON)
+        fishingIcon:setOpacity(OPACITY_ON) --
+        if wormCountHud then wormCountHud:setColor(COLOR_ACTIVE.r, COLOR_ACTIVE.g, COLOR_ACTIVE.b) end --
         print(">> Auto-Fishing ENABLED.")
-        -- Reset state to ensure it starts fresh.
         fishingState = "IDLE"
     else
-        fishingIcon:setOpacity(OPACITY_OFF)
+        fishingIcon:setOpacity(OPACITY_OFF) --
+        if wormCountHud then wormCountHud:setColor(COLOR_INACTIVE.r, COLOR_INACTIVE.g, COLOR_INACTIVE.b) end --
         print(">> Auto-Fishing DISABLED.")
     end
 end
 
 -- ################# SCRIPT INITIALIZATION #################
 
-fishingIcon = HUD.new(ICON_POSITION_X, ICON_POSITION_Y, ICON_ITEM_ID, true)
+fishingIcon = HUD.new(ICON_POSITION_X, ICON_POSITION_Y, ICON_ITEM_ID, true) --
+wormCountHud = HUD.new(COUNT_POSITION_X, COUNT_POSITION_Y, "...", true) --
 
-if fishingIcon then
-    fishingIcon:setOpacity(OPACITY_OFF)
-    fishingIcon:setCallback(toggleFishing)
-    -- This single timer now controls the entire script's logic.
-    Timer.new("FishingMasterTimer", fishingLoop, LOOP_INTERVAL_MS, true)
-    print(">> Auto-Fishing HUD (Reliable Version) loaded.")
+if fishingIcon and wormCountHud then
+    fishingIcon:setCallback(toggleFishing) --
+    fishingIcon:setOpacity(OPACITY_OFF) --
+
+    -- Style the worm count text and set its initial inactive color.
+    wormCountHud:setColor(COLOR_INACTIVE.r, COLOR_INACTIVE.g, COLOR_INACTIVE.b) --
+
+    Timer.new("FishingMasterTimer", fishingLoop, LOOP_INTERVAL_MS, true) --
+    print(">> Auto-Fishing HUD with Dynamic Text Color loaded.")
 else
     print(">> ERROR: Failed to create Auto-Fishing HUD.")
 end
