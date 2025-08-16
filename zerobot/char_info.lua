@@ -1,5 +1,5 @@
--- Advanced Player List Script for Zerobot (Final Alignment)
--- Corrects spacing and icon size to match the user's reference image.
+-- Advanced Player List Script for Zerobot (with Level Sorting)
+-- Learns player levels and sorts the list by priority, vocation, level, and then name.
 
 -- #################### CONFIGURATION ####################
 -- Position for the list on the right side of the screen.
@@ -9,10 +9,13 @@ local LIST_START_Y = 20
 -- Vertical spacing between names in the list.
 local LIST_SPACING_Y = 20
 
--- The scale of the skull icons. Reduced for a cleaner look.
+-- Horizontal spacing between the skull icon and the name.
+local ICON_TEXT_SPACING = 35
+
+-- The scale of the skull icons.
 local SKULL_ICON_SCALE = 0.5
 
--- How often the script scans for players (in milliseconds).
+-- How often the script updates the display (in milliseconds).
 local SCAN_INTERVAL_MS = 500
 
 -- Color definitions for different player states (R, G, B).
@@ -39,8 +42,27 @@ local skullIconMap = {
     [Enums.Skulls.SKULL_BLACK]  = 37335, [Enums.Skulls.SKULL_ORANGE] = 37340
 }
 
--- Table to store active HUDs for each player.
+-- A "database" to store player levels as they are discovered.
+local knownPlayerLevels = {}
 local activePlayerHuds = {}
+
+-- This event handler listens for players talking to learn their level.
+local function onPlayerTalk(name, level, mode, text)
+    if level > 0 then
+        knownPlayerLevels[name:lower()] = level
+    end
+end
+
+-- This event handler reads the server log to learn levels from inspects.
+local function onServerLogMessage(messageData)
+    if messageData.messageType == Enums.MessageTypes.MESSAGE_INFO_DESCR then --
+        local name, level = messageData.text:match("You see ([^%(]+) %(Level (%d+)")
+        if name and level then
+            name = name:gsub("^%s*(.-)%s*$", "%1")
+            knownPlayerLevels[name:lower()] = tonumber(level)
+        end
+    end
+end
 
 -- The main loop to update the player list.
 local function updatePlayerList()
@@ -48,25 +70,29 @@ local function updatePlayerList()
 
     local playersFoundThisTick = {}
     local playerList = {}
-    local myId = Player.getId() --
+    local myId = Player.getId()
 
-    local allCreatures = Map.getCreatureIds(false, false) --
+    local allCreatures = Map.getCreatureIds(false, false)
     if allCreatures then
         for _, cid in ipairs(allCreatures) do
             if cid ~= myId then
-                local creature = Creature(cid) --
-                if creature and creature:getType() == Enums.CreatureTypes.CREATURETYPE_PLAYER then --
+                local creature = Creature(cid)
+                if creature and creature:getType() == Enums.CreatureTypes.CREATURETYPE_PLAYER then
+                    local name = creature:getName()
                     table.insert(playerList, {
-                        cid = cid, name = creature:getName(), vocationId = creature:getVocation(),
-                        skullId = creature:getSkull(), partyIconId = creature:getPartyIcon(), guildEmblemId = creature:getGuildEmblem()
+                        cid = cid, name = name,
+                        level = knownPlayerLevels[name:lower()],
+                        vocationId = creature:getVocation(), skullId = creature:getSkull(),
+                        partyIconId = creature:getPartyIcon(), guildEmblemId = creature:getGuildEmblem()
                     })
                 end
             end
         end
     end
 
-    -- Sort the list of players based on priority.
+    -- Sort the list of players based on the full priority hierarchy.
     table.sort(playerList, function(a, b)
+        -- Assign priority based on status (lower number is higher priority).
         local priorityA, priorityB = 5, 5
         if a.skullId ~= Enums.Skulls.SKULL_NONE then priorityA = 1 end
         if b.skullId ~= Enums.Skulls.SKULL_NONE then priorityB = 1 end
@@ -76,10 +102,23 @@ local function updatePlayerList()
         if b.guildEmblemId == Enums.GuildEmblem.GUILDEMBLEM_MEMBER then priorityB = 3 end
         if a.partyIconId ~= Enums.PartyIcons.SHIELD_NONE and a.partyIconId ~= Enums.PartyIcons.SHIELD_GRAY then priorityA = 4 end
         if b.partyIconId ~= Enums.PartyIcons.SHIELD_NONE and b.partyIconId ~= Enums.PartyIcons.SHIELD_GRAY then priorityB = 4 end
-        
-        if priorityA ~= priorityB then
-            return priorityA < priorityB
+
+        -- Primary sort by priority.
+        if priorityA ~= priorityB then return priorityA < priorityB end
+
+        -- Secondary sort by vocation.
+        if a.vocationId ~= b.vocationId then return a.vocationId < b.vocationId end
+
+        -- NEW: Tertiary sort by level (descending).
+        if a.level and b.level then
+            if a.level ~= b.level then return a.level > b.level end
+        elseif a.level then
+            return true -- Players with known levels come before those without.
+        elseif b.level then
+            return false
         end
+
+        -- Final sort by name if all else is equal.
         return a.name:lower() < b.name:lower()
     end)
 
@@ -87,17 +126,17 @@ local function updatePlayerList()
     for i, playerData in ipairs(playerList) do
         local cid = playerData.cid
         playersFoundThisTick[cid] = true
-        
-        -- Determine display properties
+
         local yPos = LIST_START_Y + ((i - 1) * LIST_SPACING_Y)
         local skullItemId = skullIconMap[playerData.skullId]
         local vocationSuffix = vocationMap[playerData.vocationId] or "?"
-        local displayText = playerData.name .. " (" .. vocationSuffix .. ")"
-        
-        -- NEW: Improved positioning logic for consistent spacing
-        local skullXPos = LIST_MARGIN_X
-        local textXPos = skullItemId and (skullXPos - (32 * SKULL_ICON_SCALE) - 5) or skullXPos
+        local levelSuffix = playerData.level and " " .. playerData.level or ""
+        local displayText = playerData.name .. " (" .. vocationSuffix .. ")" .. levelSuffix
 
+        --local levelText = playerData.level and ", " .. playerData.level or ""
+        --local displayText = playerData.name .. " (" .. vocationSuffix .. levelText .. ")"
+
+        local textXPos = skullItemId and (LIST_MARGIN_X - (32 * SKULL_ICON_SCALE) - 5) or LIST_MARGIN_X
         local color = COLORS.NORMAL
         if playerData.skullId == Enums.Skulls.SKULL_RED or playerData.skullId == Enums.Skulls.SKULL_BLACK then color = COLORS.RED_SKULL
         elseif playerData.skullId ~= Enums.Skulls.SKULL_NONE then color = COLORS.WHITE_SKULL
@@ -109,35 +148,29 @@ local function updatePlayerList()
         if not activePlayerHuds[cid] then activePlayerHuds[cid] = {} end
         local huds = activePlayerHuds[cid]
 
-        -- Manage Skull Icon HUD
         if skullItemId then
             if not huds.skullHud then
-                huds.skullHud = HUD.new(skullXPos, yPos, skullItemId, true) --
-                huds.skullHud:setHorizontalAlignment(Enums.HorizontalAlign.Right) --
-                huds.skullHud:setScale(SKULL_ICON_SCALE) --
+                huds.skullHud = HUD.new(LIST_MARGIN_X, yPos, skullItemId, true); huds.skullHud:setHorizontalAlignment(Enums.HorizontalAlign.Right); huds.skullHud:setScale(SKULL_ICON_SCALE)
             else
-                huds.skullHud:setPos(skullXPos, yPos) --
+                huds.skullHud:setPos(LIST_MARGIN_X, yPos)
             end
         elseif huds.skullHud then
-            huds.skullHud:destroy(); huds.skullHud = nil --
+            huds.skullHud:destroy(); huds.skullHud = nil
         end
-        
-        -- Manage Text HUD
+
         if not huds.textHud then
-            huds.textHud = HUD.new(textXPos, yPos, displayText, true) --
-            huds.textHud:setHorizontalAlignment(Enums.HorizontalAlign.Right) --
+            huds.textHud = HUD.new(textXPos, yPos, displayText, true); huds.textHud:setHorizontalAlignment(Enums.HorizontalAlign.Right)
         else
-            huds.textHud:setText(displayText) --
-            huds.textHud:setPos(textXPos, yPos) --
+            huds.textHud:setText(displayText); huds.textHud:setPos(textXPos, yPos)
         end
-        huds.textHud:setColor(color.r, color.g, color.b) --
+        huds.textHud:setColor(color.r, color.g, color.b)
     end
 
     -- Clean up HUDs for players who are no longer on screen.
     for cid, huds in pairs(activePlayerHuds) do
         if not playersFoundThisTick[cid] then
-            if huds.skullHud then huds.skullHud:destroy() end --
-            if huds.textHud then huds.textHud:destroy() end --
+            if huds.skullHud then huds.skullHud:destroy() end
+            if huds.textHud then huds.textHud:destroy() end
             activePlayerHuds[cid] = nil
         end
     end
@@ -146,5 +179,7 @@ end
 
 -- ################# SCRIPT INITIALIZATION #################
 
+Game.registerEvent(Game.Events.TALK, onPlayerTalk) --
+Game.registerEvent(Game.Events.TEXT_MESSAGE, onServerLogMessage) --
 Timer.new("AdvancedPlayerListTimer", updatePlayerList, SCAN_INTERVAL_MS, true) --
-print(">> Advanced Player List (Final Alignment) script loaded.") --
+print(">> Advanced Player List (with Level Sort) loaded.") --
