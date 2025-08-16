@@ -1,20 +1,33 @@
--- Magic Wall Hotkey for Zerobot
--- Uses a Magic Wall rune on the tile in front of your current target.
+-- Magic Wall Hotkey Script with HUD
+-- Uses manual coordinate calculation to center the text below the icon.
 
 -- #################### CONFIGURATION ####################
 -- The hotkey to trigger the script.
--- You can use combinations like "ctrl+f", "alt+x", "shift+1", or single keys like "f1", "f2" etc.
--- Make sure this hotkey is NOT already assigned in the Tibia client itself.
 local HOTKEY_COMBINATION = "x"
 
 -- The Item ID for the Magic Wall Rune.
 local MAGIC_WALL_RUNE_ID = 3180
+
+-- Position of the icon on the screen.
+local ICON_POSITION_X = 90
+local ICON_POSITION_Y = 240
+
+-- ## --- Auto-calculated Text Position --- ##
+-- We manually calculate the text position to center it under the 32x32 icon.
+local ICON_WIDTH = 32
+local ICON_HEIGHT = 32
+local APPROX_CHAR_WIDTH = 6 -- Estimated average width of a character in the font.
+local TEXT_WIDTH = string.len(HOTKEY_COMBINATION) * APPROX_CHAR_WIDTH
+
+-- X-Position: Start at the icon's center, then move left by half the text's width.
+local TEXT_POSITION_X = (ICON_POSITION_X + ICON_WIDTH / 2) - (TEXT_WIDTH / 2) - 1
+-- Y-Position: Start at the icon's Y, add the icon's height, plus a small margin.
+local TEXT_POSITION_Y = ICON_POSITION_Y + ICON_HEIGHT - 16
 -- ######################################################
 
 
 -- This is the main function that performs the action.
 local function shootMagicWall()
-    -- 1. Check for basic requirements.
     if not Client.isConnected() then return end
 
     local targetId = Player.getTargetId()
@@ -28,14 +41,12 @@ local function shootMagicWall()
         return
     end
 
-    -- 2. Get target information.
     local targetCreature = Creature(targetId)
     if not targetCreature then return end
 
     local targetPos = targetCreature:getPosition()
     local targetDir = targetCreature:getDirection()
 
-    -- 3. Calculate the position of the tile in front of the target.
     local wallPos = {x = targetPos.x, y = targetPos.y, z = targetPos.z}
 
     if targetDir == Enums.Directions.NORTH then
@@ -47,25 +58,20 @@ local function shootMagicWall()
     elseif targetDir == Enums.Directions.WEST then
         wallPos.x = wallPos.x - 1
     else
-        -- Target is facing a diagonal direction, do nothing.
         print(">> Magic Wall: Target is facing diagonally.")
         return
     end
 
-    -- 4. Use the Magic Wall rune on the calculated position.
     print(">> Attempting to place Magic Wall at X:" .. wallPos.x .. ", Y:" .. wallPos.y)
     Game.useItemOnGround(MAGIC_WALL_RUNE_ID, wallPos.x, wallPos.y, wallPos.z)
 end
 
 -- This function listens for all hotkey presses.
 local function onHotkeyPress(key, modifier)
-    -- Parse the configured hotkey combination to get its key code and modifier flags.
     local success, configuredModifier, configuredKey = HotkeyManager.parseKeyCombination(HOTKEY_COMBINATION)
     if not success then return end
 
-    -- Check if the pressed hotkey matches our configured one.
     if key == configuredKey and modifier == configuredModifier then
-        -- If it matches, execute the main function.
         shootMagicWall()
     end
 end
@@ -73,8 +79,22 @@ end
 
 -- ################# SCRIPT INITIALIZATION #################
 
--- Register our onHotkeyPress function to be called by the game engine.
-Game.registerEvent(Game.Events.HOTKEY_SHORTCUT_PRESS, onHotkeyPress)
+-- Create the item icon for the HUD.
+local magicWallIcon = HUD.new(ICON_POSITION_X, ICON_POSITION_Y, MAGIC_WALL_RUNE_ID, true) --
+-- Create the text element for the HUD using our calculated coordinates.
+local hotkeyText = HUD.new(TEXT_POSITION_X, TEXT_POSITION_Y, HOTKEY_COMBINATION, true) --
 
--- Print a confirmation message in the Zerobot console.
-print(">> Magic Wall Hotkey script loaded. Press '" .. HOTKEY_COMBINATION .. "' to use.")
+if magicWallIcon and hotkeyText then
+    -- Make the item icon clickable.
+    magicWallIcon:setCallback(shootMagicWall) --
+
+    -- Style the hotkey text.
+    hotkeyText:setColor(200, 200, 200) --
+
+    -- Register the event listener for the keyboard hotkey.
+    Game.registerEvent(Game.Events.HOTKEY_SHORTCUT_PRESS, onHotkeyPress) --
+
+    print(">> Magic Wall Hotkey HUD loaded. Press '" .. HOTKEY_COMBINATION .. "' or click the icon.")
+else
+    print(">> ERROR: Failed to create Magic Wall Hotkey HUD.")
+end
