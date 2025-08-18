@@ -50,13 +50,13 @@ local function shootMagicWall()
     local wallPos = {x = targetPos.x, y = targetPos.y, z = targetPos.z}
 
     if targetDir == Enums.Directions.NORTH then
-        wallPos.y = wallPos.y - 1
+        wallPos.y = wallPos.y - 2
     elseif targetDir == Enums.Directions.SOUTH then
-        wallPos.y = wallPos.y + 1
+        wallPos.y = wallPos.y + 2
     elseif targetDir == Enums.Directions.EAST then
-        wallPos.x = wallPos.x + 1
+        wallPos.x = wallPos.x + 2
     elseif targetDir == Enums.Directions.WEST then
-        wallPos.x = wallPos.x - 1
+        wallPos.x = wallPos.x - 2
     else
         print(">> Magic Wall: Target is facing diagonally.")
         return
@@ -90,7 +90,7 @@ if magicWallIcon and hotkeyText then
 
     -- Style the hotkey text.
     hotkeyText:setColor(200, 200, 200) --
-
+    
     -- Register the event listener for the keyboard hotkey.
     Game.registerEvent(Game.Events.HOTKEY_SHORTCUT_PRESS, onHotkeyPress) --
 
