@@ -52,7 +52,6 @@ local maxFloorsAbove = 7;
 local maxFloorsBelow = 7;
 local settingsIcon = nil;
 local settingsModal = nil
-local modalAction = nil
 
 -- Event handlers to learn levels
 local function onPlayerTalk(name, level, mode, text)
@@ -71,64 +70,56 @@ local function onServerLogMessage(messageData)
 end
 
 -- ==================== Settings Modal Logic ====================
-local refreshModal;
+local openSettingsModal -- Forward declaration
 local function onModalButtonClick(buttonIndex)
-    modalAction = buttonIndex
-end
-refreshModal = function()
-    if settingsModal then
-        settingsModal:destroy()
-    end
-    local l = isListEnabled and "List: ON" or "List: OFF";
-    local t = isTrackerEnabled and "Tracker: ON" or "Tracker: OFF";
-    local d = string.format("Floors Above: %d | Floors Below: %d", maxFloorsAbove, maxFloorsBelow);
-    settingsModal = CustomModalWindow("Player Display Settings", d);
-    settingsModal:addButton("Floors Above [-]");
-    settingsModal:addButton("Floors Above [+]");
-    settingsModal:addButton("Floors Below [-]");
-    settingsModal:addButton("Floors Below [+]");
-    settingsModal:addButton(l);
-    settingsModal:addButton(t);
-    settingsModal:addButton("Save & Close");
-    settingsModal:setCallback(onModalButtonClick)
-end
-local function handleModalAction()
-    if not modalAction then
-        return
-    end ;
-    local action = modalAction;
-    modalAction = nil
-    if action == 0 then
+    if buttonIndex == 0 then
         maxFloorsAbove = math.max(0, maxFloorsAbove - 1)
-    elseif action == 1 then
+    elseif buttonIndex == 1 then
         maxFloorsAbove = math.min(7, maxFloorsAbove + 1)
-    elseif action == 2 then
+    elseif buttonIndex == 2 then
         maxFloorsBelow = math.max(0, maxFloorsBelow - 1)
-    elseif action == 3 then
+    elseif buttonIndex == 3 then
         maxFloorsBelow = math.min(7, maxFloorsBelow + 1)
-    elseif action == 4 then
+    elseif buttonIndex == 4 then
         isListEnabled = not isListEnabled
-    elseif action == 5 then
+    elseif buttonIndex == 5 then
         isTrackerEnabled = not isTrackerEnabled
-    elseif action == 6 then
+    elseif buttonIndex == 6 then
+        -- Save & Close button
         if settingsModal then
             settingsModal:destroy()
-        end ;
-        settingsModal = nil;
+        end
+        settingsModal = nil
         return
     end
-    refreshModal()
+    -- Re-open the modal to refresh its text content
+    openSettingsModal()
 end
-local function openSettingsModal()
+
+openSettingsModal = function()
     if settingsModal then
         settingsModal:destroy()
-    end ;
-    refreshModal()
+    end
+
+    local listStatus = isListEnabled and "List: ON" or "List: OFF"
+    local trackerStatus = isTrackerEnabled and "Tracker: ON" or "Tracker: OFF"
+    local description = string.format("Floors Above: %d | Floors Below: %d", maxFloorsAbove, maxFloorsBelow)
+
+    settingsModal = CustomModalWindow("Player Display Settings", description) --
+
+    settingsModal:addButton("Floors Above [-]");
+    settingsModal:addButton("Floors Above [+]") --
+    settingsModal:addButton("Floors Below [-]");
+    settingsModal:addButton("Floors Below [+]") --
+    settingsModal:addButton(listStatus);
+    settingsModal:addButton(trackerStatus) --
+    settingsModal:addButton("Save & Close") -- NEW: Dedicated close button
+
+    settingsModal:setCallback(onModalButtonClick) --
 end
 
 -- ==================== Main Display Loop ====================
 local function updatePlayerDisplays()
-    handleModalAction()
     local myId = Player.getId()
 
     if not isListEnabled and next(activePlayerHuds) then
@@ -184,13 +175,10 @@ local function updatePlayerDisplays()
                 end ;
                 for z, pL in pairs(pByFloor) do
                     table.sort(pL, function(a, b)
-                        -- FIX: New priority calculation to correctly handle ally skulls
                         local function getPriority(p)
-                            -- Highest priority for threatening skulls
                             if p.skullId == Enums.Skulls.SKULL_RED or p.skullId == Enums.Skulls.SKULL_BLACK or p.skullId == Enums.Skulls.SKULL_ORANGE or p.skullId == Enums.Skulls.SKULL_WHITE or p.skullId == Enums.Skulls.SKULL_YELLOW then
                                 return 1
                             end
-                            -- Next priorities for allegiance
                             if p.guildEmblemId == Enums.GuildEmblem.GUILDEMBLEM_ENEMY then
                                 return 2
                             end
@@ -200,7 +188,6 @@ local function updatePlayerDisplays()
                             if p.partyIconId ~= Enums.PartyIcons.SHIELD_NONE and p.partyIconId ~= Enums.PartyIcons.SHIELD_GRAY then
                                 return 4
                             end
-                            -- Lowest priority for neutral
                             return 5
                         end
                         local pA, pB = getPriority(a), getPriority(b)
