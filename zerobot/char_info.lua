@@ -52,7 +52,6 @@ local maxFloorsAbove = 7;
 local maxFloorsBelow = 7;
 local settingsIcon = nil;
 local settingsModal = nil
-local modalAction = nil
 
 -- Event handlers to learn levels
 local function onPlayerTalk(name, level, mode, text)
@@ -174,7 +173,7 @@ local function updatePlayerDisplays()
                 end ;
                 for z, pL in pairs(pByFloor) do
                     table.sort(pL, function(a, b)
-                        local function getPriority(p)
+                        local function getCategory(p)
                             if p.skullId == Enums.Skulls.SKULL_RED or p.skullId == Enums.Skulls.SKULL_BLACK or p.skullId == Enums.Skulls.SKULL_ORANGE or p.skullId == Enums.Skulls.SKULL_WHITE or p.skullId == Enums.Skulls.SKULL_YELLOW then
                                 return 1
                             end
@@ -187,15 +186,21 @@ local function updatePlayerDisplays()
                             if p.partyIconId ~= Enums.PartyIcons.SHIELD_NONE and p.partyIconId ~= Enums.PartyIcons.SHIELD_GRAY then
                                 return 4
                             end
-                            return 5
+                            return 5 -- Neutral
                         end
-                        local pA, pB = getPriority(a), getPriority(b)
-                        if pA ~= pB then
-                            return pA < pB
-                        end ;
+
+                        local categoryA = getCategory(a)
+                        local categoryB = getCategory(b)
+
+                        -- Primary Sort: By category
+                        if categoryA ~= categoryB then
+                            return categoryA < categoryB
+                        end
+
+                        -- If categories are the same, apply sub-sorting
                         if a.vocationId ~= b.vocationId then
                             return a.vocationId < b.vocationId
-                        end ;
+                        end
                         if a.level and b.level then
                             if a.level ~= b.level then
                                 return a.level > b.level
@@ -204,7 +209,7 @@ local function updatePlayerDisplays()
                             return true
                         elseif b.level then
                             return false
-                        end ;
+                        end
                         return a.name:lower() < b.name:lower()
                     end)
                 end ;
