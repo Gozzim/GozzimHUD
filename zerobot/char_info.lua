@@ -52,6 +52,7 @@ local maxFloorsAbove = 7;
 local maxFloorsBelow = 7;
 local settingsIcon = nil;
 local settingsModal = nil
+local modalAction = nil
 
 -- Event handlers to learn levels
 local function onPlayerTalk(name, level, mode, text)
@@ -92,7 +93,6 @@ local function onModalButtonClick(buttonIndex)
         settingsModal = nil
         return
     end
-    -- Re-open the modal to refresh its text content
     openSettingsModal()
 end
 
@@ -105,17 +105,16 @@ openSettingsModal = function()
     local trackerStatus = isTrackerEnabled and "Tracker: ON" or "Tracker: OFF"
     local description = string.format("Floors Above: %d | Floors Below: %d", maxFloorsAbove, maxFloorsBelow)
 
-    settingsModal = CustomModalWindow("Player Display Settings", description) --
-
+    settingsModal = CustomModalWindow("Player Display Settings", description)
     settingsModal:addButton("Floors Above [-]");
-    settingsModal:addButton("Floors Above [+]") --
+    settingsModal:addButton("Floors Above [+]")
     settingsModal:addButton("Floors Below [-]");
-    settingsModal:addButton("Floors Below [+]") --
+    settingsModal:addButton("Floors Below [+]")
     settingsModal:addButton(listStatus);
-    settingsModal:addButton(trackerStatus) --
-    settingsModal:addButton("Save & Close") -- NEW: Dedicated close button
+    settingsModal:addButton(trackerStatus)
+    settingsModal:addButton("Save & Close")
 
-    settingsModal:setCallback(onModalButtonClick) --
+    settingsModal:setCallback(onModalButtonClick)
 end
 
 -- ==================== Main Display Loop ====================
@@ -182,7 +181,7 @@ local function updatePlayerDisplays()
                             if p.guildEmblemId == Enums.GuildEmblem.GUILDEMBLEM_ENEMY then
                                 return 2
                             end
-                            if p.guildEmblemId == Enums.GuildEmblem.GUILDEMBLEM_MEMBER then
+                            if p.guildEmblemId == Enums.GuildEmblem.GUILDEMBLEM_MEMBER or p.guildEmblemId == Enums.GuildEmblem.GUILDEMBLEM_ALLY then
                                 return 3
                             end
                             if p.partyIconId ~= Enums.PartyIcons.SHIELD_NONE and p.partyIconId ~= Enums.PartyIcons.SHIELD_GRAY then
@@ -251,7 +250,7 @@ local function updatePlayerDisplays()
                             local clr = COLORS.NORMAL;
                             if pData.guildEmblemId == Enums.GuildEmblem.GUILDEMBLEM_ENEMY then
                                 clr = COLORS.ENEMY
-                            elseif pData.guildEmblemId == Enums.GuildEmblem.GUILDEMBLEM_MEMBER then
+                            elseif pData.guildEmblemId == Enums.GuildEmblem.GUILDEMBLEM_MEMBER or pData.guildEmblemId == Enums.GuildEmblem.GUILDEMBLEM_ALLY then
                                 clr = COLORS.GUILD
                             elseif pData.partyIconId ~= Enums.PartyIcons.SHIELD_NONE and pData.partyIconId ~= Enums.PartyIcons.SHIELD_GRAY then
                                 clr = COLORS.PARTY
