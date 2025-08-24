@@ -183,7 +183,7 @@ local function updatePlayerDisplays()
                     table.sort(pL, function(a, b)
                         local function getPriority(p)
                             -- First, check for ally status, as this overrides most other states.
-                            if p.partyIconId ~= Enums.PartyIcons.SHIELD_NONE and p.partyIconId ~= Enums.PartyIcons.SHIELD_GRAY then
+                            if p.partyIconId ~= Enums.PartyIcons.SHIELD_NONE and p.partyIconId ~= Enums.PartyIcons.SHIELD_GRAY and p.partyIconId ~= Enums.PartyIcons.SHIELD_WHITEYELLOW and p.partyIconId ~= Enums.PartyIcons.SHIELD_WHITEBLUE then
                                 return 4
                             end -- PARTY
                             if p.guildEmblemId == Enums.GuildEmblem.GUILDEMBLEM_MEMBER or p.guildEmblemId == Enums.GuildEmblem.GUILDEMBLEM_ALLY then
@@ -260,7 +260,7 @@ local function updatePlayerDisplays()
                             local dTxt = pData.name .. " (" .. vS .. lvlS .. ")"
                             local tX = sId and (LIST_MARGIN_X - (32 * SKULL_ICON_SCALE) - 5) or LIST_MARGIN_X
                             local clr = COLORS.NORMAL
-                            if pData.partyIconId ~= Enums.PartyIcons.SHIELD_NONE and pData.partyIconId ~= Enums.PartyIcons.SHIELD_GRAY then
+                            if pData.partyIconId ~= Enums.PartyIcons.SHIELD_NONE and pData.partyIconId ~= Enums.PartyIcons.SHIELD_GRAY and pData.partyIconId ~= Enums.PartyIcons.SHIELD_WHITEYELLOW and pData.partyIconId ~= Enums.PartyIcons.SHIELD_WHITEBLUE then
                                 clr = COLORS.PARTY
                             elseif pData.guildEmblemId == Enums.GuildEmblem.GUILDEMBLEM_MEMBER or pData.guildEmblemId == Enums.GuildEmblem.GUILDEMBLEM_ALLY then
                                 clr = COLORS.GUILD
