@@ -173,31 +173,30 @@ local function updatePlayerDisplays()
                 end ;
                 for z, pL in pairs(pByFloor) do
                     table.sort(pL, function(a, b)
-                        local function getCategory(p)
-                            if p.skullId == Enums.Skulls.SKULL_RED or p.skullId == Enums.Skulls.SKULL_BLACK or p.skullId == Enums.Skulls.SKULL_ORANGE or p.skullId == Enums.Skulls.SKULL_WHITE or p.skullId == Enums.Skulls.SKULL_YELLOW then
-                                return 1
-                            end
-                            if p.guildEmblemId == Enums.GuildEmblem.GUILDEMBLEM_ENEMY then
-                                return 2
-                            end
-                            if p.guildEmblemId == Enums.GuildEmblem.GUILDEMBLEM_MEMBER or p.guildEmblemId == Enums.GuildEmblem.GUILDEMBLEM_ALLY then
-                                return 3
-                            end
+                        local function getPriority(p)
+                            -- First, check for ally status, as this overrides most other states.
                             if p.partyIconId ~= Enums.PartyIcons.SHIELD_NONE and p.partyIconId ~= Enums.PartyIcons.SHIELD_GRAY then
                                 return 4
-                            end
-                            return 5 -- Neutral
+                            end -- PARTY
+                            if p.guildEmblemId == Enums.GuildEmblem.GUILDEMBLEM_MEMBER or p.guildEmblemId == Enums.GuildEmblem.GUILDEMBLEM_ALLY then
+                                return 3
+                            end -- GUILD
+
+                            -- If not an ally, check for threat status.
+                            if p.guildEmblemId == Enums.GuildEmblem.GUILDEMBLEM_ENEMY then
+                                return 2
+                            end -- ENEMY
+                            if p.skullId ~= Enums.Skulls.SKULL_NONE and p.skullId ~= Enums.Skulls.SKULL_GREEN then
+                                return 1
+                            end -- THREATENING SKULL
+
+                            return 5 -- NEUTRAL
                         end
 
-                        local categoryA = getCategory(a)
-                        local categoryB = getCategory(b)
-
-                        -- Primary Sort: By category
-                        if categoryA ~= categoryB then
-                            return categoryA < categoryB
-                        end
-
-                        -- If categories are the same, apply sub-sorting
+                        local pA, pB = getPriority(a), getPriority(b)
+                        if pA ~= pB then
+                            return pA < pB
+                        end ;
                         if a.vocationId ~= b.vocationId then
                             return a.vocationId < b.vocationId
                         end
@@ -253,15 +252,15 @@ local function updatePlayerDisplays()
                             local dTxt = pData.name .. " (" .. vS .. lvlS .. ")";
                             local tX = sId and (LIST_MARGIN_X - (32 * SKULL_ICON_SCALE) - 5) or LIST_MARGIN_X;
                             local clr = COLORS.NORMAL;
-                            if pData.guildEmblemId == Enums.GuildEmblem.GUILDEMBLEM_ENEMY then
-                                clr = COLORS.ENEMY
+                            if pData.partyIconId ~= Enums.PartyIcons.SHIELD_NONE and pData.partyIconId ~= Enums.PartyIcons.SHIELD_GRAY then
+                                clr = COLORS.PARTY
                             elseif pData.guildEmblemId == Enums.GuildEmblem.GUILDEMBLEM_MEMBER or pData.guildEmblemId == Enums.GuildEmblem.GUILDEMBLEM_ALLY then
                                 clr = COLORS.GUILD
-                            elseif pData.partyIconId ~= Enums.PartyIcons.SHIELD_NONE and pData.partyIconId ~= Enums.PartyIcons.SHIELD_GRAY then
-                                clr = COLORS.PARTY
+                            elseif pData.guildEmblemId == Enums.GuildEmblem.GUILDEMBLEM_ENEMY then
+                                clr = COLORS.ENEMY
                             elseif pData.skullId == Enums.Skulls.SKULL_RED or pData.skullId == Enums.Skulls.SKULL_BLACK then
                                 clr = COLORS.RED_SKULL
-                            elseif pData.skullId ~= Enums.Skulls.SKULL_NONE then
+                            elseif pData.skullId ~= Enums.Skulls.SKULL_NONE and pData.skullId ~= Enums.Skulls.SKULL_GREEN then
                                 clr = COLORS.WHITE_SKULL
                             end
                             if not activePlayerHuds[cid] then
