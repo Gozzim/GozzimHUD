@@ -274,6 +274,7 @@ local function updatePlayerDisplays()
                                     huds.skullHud:setHorizontalAlignment(Enums.HorizontalAlign.Right);
                                     huds.skullHud:setScale(SKULL_ICON_SCALE)
                                 else
+                                    huds.skullHud:setItemId(sId)
                                     huds.skullHud:setPos(LIST_MARGIN_X, yOff)
                                 end
                             elseif huds.skullHud then
