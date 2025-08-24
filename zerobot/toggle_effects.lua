@@ -24,11 +24,11 @@ local function pressToggleHotkey()
     print(">> Simulating '" .. TOGGLE_HOTKEY .. "' key press to toggle magic effects.")
 
     -- Parse the hotkey string to get its key code and modifier.
-    local success, modifier, key = HotkeyManager.parseKeyCombination(TOGGLE_HOTKEY) --
+    local success, modifier, key = HotkeyManager.parseKeyCombination(TOGGLE_HOTKEY)
 
     if success then
         -- Send the key press event to the client.
-        Client.sendHotkey(key, modifier) --
+        Client.sendHotkey(key, modifier)
     else
         print(">> ERROR: Could not parse the configured hotkey: '" .. TOGGLE_HOTKEY .. "'")
     end
@@ -37,11 +37,11 @@ end
 -- ################# SCRIPT INITIALIZATION #################
 
 -- Create the HUD icon.
-effectsButtonIcon = HUD.new(ICON_POSITION_X, ICON_POSITION_Y, ICON_ITEM_ID, true) --
+effectsButtonIcon = HUD.new(ICON_POSITION_X, ICON_POSITION_Y, ICON_ITEM_ID, true)
 
 if effectsButtonIcon then
     -- Assign our pressToggleHotkey function to be called when the icon is clicked.
-    effectsButtonIcon:setCallback(pressToggleHotkey) --
+    effectsButtonIcon:setCallback(pressToggleHotkey)
 
     print(">> Magic Effects Button HUD loaded. Click the ring icon to press '" .. TOGGLE_HOTKEY .. "'.")
 else

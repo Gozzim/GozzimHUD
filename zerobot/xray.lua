@@ -7,7 +7,7 @@ local ICON_ITEM_ID = 3068
 
 -- Position of the toggle icon on the screen.
 local ICON_POSITION_X = 10
-local ICON_POSITION_Y = 440 -- Positioned below the other icons
+local ICON_POSITION_Y = 440
 
 -- Starting position for the list of player names.
 local LIST_START_X = 10
@@ -37,13 +37,19 @@ local activePlayerHuds = {}
 
 -- This function updates the HUD elements based on current player locations.
 local function updateXRayList()
-    if not isXRayActive then return end
+    if not isXRayActive then
+        return
+    end
 
     -- Get our own player's Z position to determine the floor below.
     local myPlayerCreature = Creature(Player.getId())
-    if not myPlayerCreature then return end
+    if not myPlayerCreature then
+        return
+    end
     local myPos = myPlayerCreature:getPosition()
-    if not myPos then return end
+    if not myPos then
+        return
+    end
     local floorBelowZ = myPos.z + 1
 
     -- Keep track of players found in this scan to remove old entries.
@@ -88,7 +94,7 @@ local function updateXRayList()
         end
     end
 
-    -- Clean up: Remove HUDs for players who are no longer visible or on the wrong floor.
+    -- Remove HUDs for players who are no longer visible or on the wrong floor.
     for cid, hud in pairs(activePlayerHuds) do
         if not playersFoundThisTick[cid] then
             hud:destroy()
@@ -127,7 +133,7 @@ if xrayToggleIcon then
     -- Create a recurring timer that runs the main update function.
     Timer.new("XRayUpdateTimer", updateXRayList, SCAN_INTERVAL_MS, true)
 
-    print(">> X-Ray Player List HUD loaded. Click the eye icon to toggle.")
+    print(">> X-Ray Player List HUD loaded.")
 else
     print(">> ERROR: Failed to create X-Ray Player List HUD.")
 end

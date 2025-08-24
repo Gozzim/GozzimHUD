@@ -40,70 +40,70 @@ local function toggleHaste()
 
     if isAutoHasteActive then
         -- Set icon to fully visible and print a message.
-        hasteIcon:setOpacity(OPACITY_ON) --
-        print(">> Auto-Haste ENABLED.") --
+        hasteIcon:setOpacity(OPACITY_ON)
+        print(">> Auto-Haste ENABLED.")
     else
         -- Set icon to semi-transparent and print a message.
-        hasteIcon:setOpacity(OPACITY_OFF) --
-        print(">> Auto-Haste DISABLED.") --
+        hasteIcon:setOpacity(OPACITY_OFF)
+        print(">> Auto-Haste DISABLED.")
     end
 end
 
 -- This function is run by the timer to check if we need to cast haste.
 local function castHasteIfNeeded()
     -- Only proceed if auto-haste is enabled and the client is connected.
-    if not isAutoHasteActive or not Client.isConnected() then --
+    if not isAutoHasteActive or not Client.isConnected() then
         return
     end
 
     -- ## Vocation Check: Get the player's creature object to find the vocation ##
-    local playerCreature = Creature(Player.getId()) --
-    local currentVocation = playerCreature:getVocation() --
+    local playerCreature = Creature(Player.getId())
+    local currentVocation = playerCreature:getVocation()
 
     local spellToCast = DEFAULT_HASTE_SPELL
     local manaCostForSpell = DEFAULT_MANA_COST
 
     -- Set the correct spell based on vocation enum.
-    if currentVocation == Enums.Vocations.SORCERER or currentVocation == Enums.Vocations.DRUID then --
+    if currentVocation == Enums.Vocations.SORCERER or currentVocation == Enums.Vocations.DRUID then
         spellToCast = STRONG_HASTE_SPELL
         manaCostForSpell = STRONG_MANA_COST
     end
 
     -- Check all conditions before casting.
     local canCast = true
-    if Player.getState(Enums.States.STATE_PIGEON) then --
+    if Player.getState(Enums.States.STATE_PIGEON) then
         canCast = false -- In a protection zone (indicated by the pigeon state).
-    elseif Player.getState(Enums.States.STATE_HASTE) then --
+    elseif Player.getState(Enums.States.STATE_HASTE) then
         canCast = false -- Already hasted.
-    elseif Player.getMana() < manaCostForSpell then --
+    elseif Player.getMana() < manaCostForSpell then
         canCast = false -- Not enough mana.
-    elseif Spells.groupIsInCooldown(Enums.SpellGroups.SPELLGROUP_SUPPORT) then --
+    elseif Spells.groupIsInCooldown(Enums.SpellGroups.SPELLGROUP_SUPPORT) then
         canCast = false -- A support spell (like haste) is on cooldown.
     end
 
     -- If all checks passed, cast the spell.
     if canCast then
-        Game.talk(spellToCast, Enums.TalkTypes.TALKTYPE_SAY) --
+        Game.talk(spellToCast, Enums.TalkTypes.TALKTYPE_SAY)
     end
 end
 
 -- ################# SCRIPT INITIALIZATION #################
 
 -- Create the HUD icon using the item ID and position from the config.
-hasteIcon = HUD.new(ICON_POSITION_X, ICON_POSITION_Y, ICON_ITEM_ID, true) --
+hasteIcon = HUD.new(ICON_POSITION_X, ICON_POSITION_Y, ICON_ITEM_ID, true)
 
 if hasteIcon then
     -- Set the icon's initial state to OFF (semi-transparent).
-    hasteIcon:setOpacity(OPACITY_ON) --
+    hasteIcon:setOpacity(OPACITY_ON)
 
     -- Assign our toggleHaste function to be called when the icon is clicked.
-    hasteIcon:setCallback(toggleHaste) --
+    hasteIcon:setCallback(toggleHaste)
 
     -- Create a recurring timer that calls castHasteIfNeeded.
-    Timer.new("HasteTimer", castHasteIfNeeded, RECAST_INTERVAL_MS, true) --
+    Timer.new("HasteTimer", castHasteIfNeeded, RECAST_INTERVAL_MS, true)
 
     -- Print a confirmation message in the Zerobot console.
-    print(">> Haste HUD loaded.") --
+    print(">> Haste HUD loaded.")
 else
-    print(">> ERROR: Failed to create Haste Toggle HUD.") --
+    print(">> ERROR: Failed to create Haste Toggle HUD.")
 end

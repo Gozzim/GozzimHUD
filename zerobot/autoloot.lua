@@ -7,7 +7,7 @@ local ICON_ITEM_ID = 23721
 
 -- Position of the icon on the screen.
 local ICON_POSITION_X = 10
-local ICON_POSITION_Y = 360 -- Positioned below the other icons
+local ICON_POSITION_Y = 360
 
 -- Cooldown in milliseconds to prevent spamming the loot command for a single kill.
 local LOOT_COOLDOWN_MS = 500
@@ -44,7 +44,9 @@ end
 -- It triggers the loot action when a monster's death is detected.
 local function onTextMessage(messageData)
     -- Only proceed if the feature is toggled on.
-    if not isAutoLootActive then return end
+    if not isAutoLootActive then
+        return
+    end
 
     -- Check if the message indicates a monster was killed (loot or experience gained).
     local messageType = messageData.messageType

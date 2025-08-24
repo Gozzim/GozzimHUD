@@ -47,14 +47,22 @@ end
 -- This is the main logic function, running on a timer.
 local function castUtitoIfNeeded()
     -- Only run if the feature is toggled on and the player is in the game.
-    if not isAutoUtitoActive or not Client.isConnected() then return end
+    if not isAutoUtitoActive or not Client.isConnected() then
+        return
+    end
 
     -- 1. --- SAFETY CHECKS --- (Conditions that PREVENT casting)
-    if Player.getState(Enums.States.STATE_PARTY_BUFF) then return end
+    if Player.getState(Enums.States.STATE_PARTY_BUFF) then
+        return
+    end
     -- Check if health is too low.
-    if Player.getHealthPercent() < MIN_HP_PERCENT_TO_CAST then return end
+    if Player.getHealthPercent() < MIN_HP_PERCENT_TO_CAST then
+        return
+    end
     -- Check if in a Protection Zone.
-    if Player.getState(Enums.States.STATE_PIGEON) then return end
+    if Player.getState(Enums.States.STATE_PIGEON) then
+        return
+    end
 
     local monsterCount = 0
     local isPlayerThreatNearby = false
@@ -87,11 +95,17 @@ local function castUtitoIfNeeded()
 
     -- 2. --- EFFICIENCY CHECKS --- (Conditions REQUIRED for casting)
     -- Check if there are enough monsters nearby.
-    if monsterCount < MIN_MONSTERS_TO_CAST then return end
+    if monsterCount < MIN_MONSTERS_TO_CAST then
+        return
+    end
     -- Check for sufficient mana.
-    if Player.getMana() < UTITO_MANA_COST then return end
+    if Player.getMana() < UTITO_MANA_COST then
+        return
+    end
     -- Check if the support spell group is on cooldown.
-    if Spells.groupIsInCooldown(Enums.SpellGroups.SPELLGROUP_SUPPORT) then return end
+    if Spells.groupIsInCooldown(Enums.SpellGroups.SPELLGROUP_SUPPORT) then
+        return
+    end
 
     -- 3. --- ACTION ---
     -- If all checks passed, cast the spell.
@@ -110,7 +124,7 @@ if autoUtitoIcon then
     -- Create a recurring timer that runs the main logic loop.
     Timer.new("AutoUtitoTimer", castUtitoIfNeeded, CHECK_INTERVAL_MS, true)
 
-    print(">> Auto 'Utito Tempo' HUD loaded. Click the potion icon to toggle.")
+    print(">> Auto 'Utito Tempo' HUD loaded.")
 else
     print(">> ERROR: Failed to create Auto 'Utito Tempo' HUD.")
 end

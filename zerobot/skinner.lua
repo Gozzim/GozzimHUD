@@ -11,7 +11,7 @@ local BLESSED_STAKE_ID = 5942
 
 -- Position of the icon on the screen.
 local ICON_POSITION_X = 10
-local ICON_POSITION_Y = 400 -- Positioned below the other icons
+local ICON_POSITION_Y = 400
 
 -- Cooldown in milliseconds after a kill before scanning for corpses.
 -- This gives the game time to render the corpse and prevents spam.
@@ -25,8 +25,8 @@ local OPACITY_OFF = 0.5 -- Semi-transparent
 
 
 -- Convert the body ID arrays into sets for faster lookups
-local knifeBodies = { [4286]=true, [4272]=true, [4173]=true, [4011]=true, [4025]=true, [4047]=true, [4052]=true, [4057]=true, [4062]=true, [4112]=true, [4212]=true, [4321]=true, [4324]=true, [4327]=true, [10352]=true, [10356]=true, [10360]=true, [10364]=true }
-local stakeBodies = { [4097]=true, [4137]=true, [8738]=true, [18958]=true }
+local knifeBodies = { [4286] = true, [4272] = true, [4173] = true, [4011] = true, [4025] = true, [4047] = true, [4052] = true, [4057] = true, [4062] = true, [4112] = true, [4212] = true, [4321] = true, [4324] = true, [4327] = true, [10352] = true, [10356] = true, [10360] = true, [10364] = true }
+local stakeBodies = { [4097] = true, [4137] = true, [8738] = true, [18958] = true }
 
 -- State tracking variables
 local isAutoSkinActive = false
@@ -58,7 +58,9 @@ local function skinNearbyCorpse()
 
     -- Get all tiles on the screen.
     local tiles = Map.getTiles()
-    if not tiles then return end
+    if not tiles then
+        return
+    end
 
     -- Iterate through every tile and every item on each tile.
     for _, tile in ipairs(tiles) do
@@ -68,12 +70,12 @@ local function skinNearbyCorpse()
                 -- Check if the item is a corpse that needs a knife.
                 if hasKnife and knifeBodies[thing.id] then
                     toolToUse = OBSIDIAN_KNIFE_ID
-                -- Check if the item is a corpse that needs a stake.
+                    -- Check if the item is a corpse that needs a stake.
                 elseif hasStake and stakeBodies[thing.id] then
                     toolToUse = BLESSED_STAKE_ID
                 end
 
-                -- If we found a skinnable corpse and have the right tool...
+                -- If we found a skinnable corpse and have the right tool
                 if toolToUse then
                     print(">> Found skinnable corpse (ID: " .. thing.id .. "). Attempting to use tool (ID: " .. toolToUse .. ").")
                     -- Use the tool on the corpse's location.
@@ -88,7 +90,9 @@ end
 
 -- This function listens for game messages to detect a kill.
 local function onTextMessage(messageData)
-    if not isAutoSkinActive then return end
+    if not isAutoSkinActive then
+        return
+    end
 
     local messageType = messageData.messageType
     if messageType == Enums.MessageTypes.MESSAGE_LOOT or messageType == Enums.MessageTypes.MESSAGE_EXPERIENCE then
@@ -113,7 +117,7 @@ if autoSkinIcon then
     -- Register the event listener for monster kills.
     Game.registerEvent(Game.Events.TEXT_MESSAGE, onTextMessage)
 
-    print(">> Auto-Skinner HUD loaded. Click the knife icon to toggle.")
+    print(">> Auto-Skinner HUD loaded.")
 else
     print(">> ERROR: Failed to create Auto-Skinner HUD.")
 end

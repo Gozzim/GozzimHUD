@@ -7,7 +7,7 @@ local ICON_ITEM_ID = 3349
 
 -- Position of the icon on the screen.
 local ICON_POSITION_X = 10
-local ICON_POSITION_Y = 240 -- Positioned below the haste icon from the previous script
+local ICON_POSITION_Y = 240
 
 -- How often to check for external changes (in milliseconds).
 -- This ensures the icon updates if you change the setting manually in the bot UI.
@@ -24,7 +24,9 @@ local holdTargetIcon = nil
 
 -- This function updates the icon's appearance based on the bot's setting.
 local function updateIconState()
-    if not holdTargetIcon then return end
+    if not holdTargetIcon then
+        return
+    end
 
     if Engine.isHoldTargetEnabled() then
         -- If enabled, make the icon fully visible.
@@ -72,7 +74,7 @@ if holdTargetIcon then
     Timer.new("HoldTargetSyncTimer", updateIconState, SYNC_INTERVAL_MS, true)
 
     -- Print a confirmation message in the Zerobot console.
-    print(">> Hold Target Toggle HUD loaded. Click the crossbow icon to toggle.")
+    print(">> Hold Target Toggle HUD loaded.")
 else
     print(">> ERROR: Failed to create Hold Target Toggle HUD.")
 end

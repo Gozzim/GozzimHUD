@@ -22,30 +22,32 @@ local currentIconId = 0 -- This will track the item ID currently shown on the HU
 
 -- This function now updates both the icon's appearance (item) and its state (opacity).
 local function updateIconState()
-    if not runeMaxIcon then return end
+    if not runeMaxIcon then
+        return
+    end
 
     -- Get the rune ID currently configured in ZeroBot's Rune Max tool.
-    local configuredRuneId = Engine.getRuneMaxId() --
+    local configuredRuneId = Engine.getRuneMaxId()
 
     -- If the configured rune is different from our current icon, update the icon.
     if configuredRuneId ~= 0 and configuredRuneId ~= currentIconId then
-        runeMaxIcon:setItemId(configuredRuneId) --
+        runeMaxIcon:setItemId(configuredRuneId)
         currentIconId = configuredRuneId
         print(">> Rune Max icon updated to item ID: " .. configuredRuneId)
     end
 
     -- Update the icon's opacity based on whether the feature is enabled.
-    if Engine.isRuneMaxEnabled() then --
-        runeMaxIcon:setOpacity(OPACITY_ON) --
+    if Engine.isRuneMaxEnabled() then
+        runeMaxIcon:setOpacity(OPACITY_ON)
     else
-        runeMaxIcon:setOpacity(OPACITY_OFF) --
+        runeMaxIcon:setOpacity(OPACITY_OFF)
     end
 end
 
 -- This function is called when the HUD icon is clicked.
 local function toggleRuneMax()
-    local isCurrentlyEnabled = Engine.isRuneMaxEnabled() --
-    Engine.runeMaxEnable(not isCurrentlyEnabled) --
+    local isCurrentlyEnabled = Engine.isRuneMaxEnabled()
+    Engine.runeMaxEnable(not isCurrentlyEnabled)
 
     Timer.new("UpdateRuneMaxIconDelay", function()
         updateIconState()
@@ -54,14 +56,14 @@ local function toggleRuneMax()
         else
             print(">> Rune Max DISABLED.")
         end
-    end, 100, false) --
+    end, 100, false)
 end
 
 
 -- ################# SCRIPT INITIALIZATION #################
 
 -- Get the initial rune ID to create the icon for the first time.
-local initialRuneId = Engine.getRuneMaxId() --
+local initialRuneId = Engine.getRuneMaxId()
 if initialRuneId == 0 then
     -- Default to an SD rune if no rune is configured yet.
     initialRuneId = 3155
@@ -69,12 +71,12 @@ if initialRuneId == 0 then
 end
 currentIconId = initialRuneId
 
-runeMaxIcon = HUD.new(ICON_POSITION_X, ICON_POSITION_Y, currentIconId, true) --
+runeMaxIcon = HUD.new(ICON_POSITION_X, ICON_POSITION_Y, currentIconId, true)
 
 if runeMaxIcon then
-    runeMaxIcon:setCallback(toggleRuneMax) --
+    runeMaxIcon:setCallback(toggleRuneMax)
     updateIconState() -- Set the initial appearance and state.
-    Timer.new("RuneMaxSyncTimer", updateIconState, SYNC_INTERVAL_MS, true) --
+    Timer.new("RuneMaxSyncTimer", updateIconState, SYNC_INTERVAL_MS, true)
 
     print(">> Dynamic Rune Max Toggle HUD loaded. Icon will match your configuration.")
 else

@@ -12,7 +12,7 @@ local EAT_INTERVAL_MS = 1000 -- Check every 1 second
 
 -- Position of the icon on the screen.
 local ICON_POSITION_X = 10
-local ICON_POSITION_Y = 160 -- Repositioned above the haste icon (at Y=200)
+local ICON_POSITION_Y = 160
 
 -- Opacity for the icon when ON vs OFF.
 local OPACITY_ON = 1.0  -- Fully visible
@@ -21,7 +21,6 @@ local OPACITY_OFF = 0.5 -- Semi-transparent
 
 
 -- This variable tracks whether auto-eating is active.
--- ############# CHANGE: Set to true for ON by default #############
 local isAutoEatingActive = true
 
 -- This will hold our HUD object.
@@ -73,7 +72,6 @@ end
 foodIcon = HUD.new(ICON_POSITION_X, ICON_POSITION_Y, FOOD_ITEM_ID, true)
 
 if foodIcon then
-    -- ############# CHANGE: Set initial opacity to ON #############
     foodIcon:setOpacity(OPACITY_ON)
 
     -- Assign our toggleFoodEating function to be called when the icon is clicked.
@@ -82,8 +80,7 @@ if foodIcon then
     -- Create a recurring timer that calls eatFoodIfNeeded.
     Timer.new("FoodTimer", eatFoodIfNeeded, EAT_INTERVAL_MS, true)
 
-    -- ############# CHANGE: Update confirmation message #############
-    print(">> Auto-Eating HUD loaded and ENABLED by default. Click the mushroom icon to toggle.")
+    print(">> Auto-Eating HUD loaded.")
 else
     print(">> ERROR: Failed to create Auto-Eating HUD.")
 end
