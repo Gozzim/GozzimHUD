@@ -60,7 +60,8 @@ local maxFloorsAbove = 7
 local maxFloorsBelow = 7
 local showPartyMembers = true
 local showGuildMates = true
-local subSortOrder = "vocation" -- Can be "vocation" or "level"
+local subSortOrder = "vocation"
+local isCategorySortEnabled = true
 local settingsIcon = nil
 local settingsModal = nil
 
@@ -102,6 +103,8 @@ local function onModalButtonClick(buttonIndex)
     elseif buttonIndex == 8 then
         subSortOrder = (subSortOrder == "vocation" and "level" or "vocation")
     elseif buttonIndex == 9 then
+        isCategorySortEnabled = not isCategorySortEnabled
+    elseif buttonIndex == 10 then
         -- Save & Close button
         if settingsModal then
             settingsModal:destroy()
@@ -122,6 +125,7 @@ openSettingsModal = function()
     local partyStatus = showPartyMembers and "Party: ON" or "Party: OFF"
     local guildStatus = showGuildMates and "Guild: ON" or "Guild: OFF"
     local sortStatus = "Sort by: " .. subSortOrder:gsub("^%l", string.upper)
+    local categorySortStatus = isCategorySortEnabled and "Categorize: ON" or "Categorize: OFF"
     local description = string.format("Floors Above: %d | Floors Below: %d", maxFloorsAbove, maxFloorsBelow)
 
     settingsModal = CustomModalWindow("Player Display Settings", description)
@@ -134,6 +138,7 @@ openSettingsModal = function()
     settingsModal:addButton(partyStatus)
     settingsModal:addButton(guildStatus)
     settingsModal:addButton(sortStatus)
+    settingsModal:addButton(categorySortStatus)
     settingsModal:addButton("Save & Close")
 
     settingsModal:setCallback(onModalButtonClick)
@@ -201,30 +206,34 @@ local function updatePlayerDisplays()
                 end
                 for z, pL in pairs(pByFloor) do
                     table.sort(pL, function(a, b)
-                        local function getPriority(p)
-                            -- First, check for ally status, as this overrides most other states.
-                            if p.partyIconId >= Enums.PartyIcons.SHIELD_BLUE and p.partyIconId <= Enums.PartyIcons.SHIELD_YELLOW_NOSHAREDEXP then
-                                return 4
-                            end -- PARTY
-                            if p.guildEmblemId == Enums.GuildEmblem.GUILDEMBLEM_MEMBER or p.guildEmblemId == Enums.GuildEmblem.GUILDEMBLEM_ALLY then
-                                return 3
-                            end -- GUILD
+                        if isCategorySortEnabled then
+                            local function getPriority(p)
+                                -- First, check for ally status, as this overrides most other states.
+                                if p.partyIconId >= Enums.PartyIcons.SHIELD_BLUE and p.partyIconId <= Enums.PartyIcons.SHIELD_YELLOW_NOSHAREDEXP then
+                                    return 4
+                                end -- PARTY
+                                if p.guildEmblemId == Enums.GuildEmblem.GUILDEMBLEM_MEMBER or p.guildEmblemId == Enums.GuildEmblem.GUILDEMBLEM_ALLY then
+                                    return 3
+                                end -- GUILD
 
-                            -- If not an ally, check for threat status.
-                            if p.guildEmblemId == Enums.GuildEmblem.GUILDEMBLEM_ENEMY then
-                                return 2
-                            end -- ENEMY
-                            if p.skullId ~= Enums.Skulls.SKULL_NONE and p.skullId ~= Enums.Skulls.SKULL_GREEN then
-                                return 1
-                            end -- THREATENING SKULL
+                                -- If not an ally, check for threat status.
+                                if p.guildEmblemId == Enums.GuildEmblem.GUILDEMBLEM_ENEMY then
+                                    return 2
+                                end -- ENEMY
+                                if p.skullId ~= Enums.Skulls.SKULL_NONE and p.skullId ~= Enums.Skulls.SKULL_GREEN then
+                                    return 1
+                                end -- THREATENING SKULL
 
-                            return 5 -- NEUTRAL
+                                return 5 -- NEUTRAL
+                            end
+
+                            local pA, pB = getPriority(a), getPriority(b)
+                            if pA ~= pB then
+                                return pA < pB
+                            end
                         end
 
-                        local pA, pB = getPriority(a), getPriority(b)
-                        if pA ~= pB then
-                            return pA < pB
-                        end
+                        -- Sub-sorting logic
                         if subSortOrder == "vocation" then
                             if a.vocationId ~= b.vocationId then
                                 return a.vocationId < b.vocationId
@@ -296,7 +305,6 @@ local function updatePlayerDisplays()
                             local dTxt = pData.name .. " (" .. vS .. lvlS .. ")"
                             local tX = sId and (LIST_MARGIN_X - (32 * SKULL_ICON_SCALE) - 5) or LIST_MARGIN_X
                             local clr = COLORS.NORMAL
-                            --
                             if pData.partyIconId >= Enums.PartyIcons.SHIELD_BLUE and pData.partyIconId <= Enums.PartyIcons.SHIELD_YELLOW_NOSHAREDEXP then
                                 clr = COLORS.PARTY
                             elseif pData.guildEmblemId == Enums.GuildEmblem.GUILDEMBLEM_MEMBER or pData.guildEmblemId == Enums.GuildEmblem.GUILDEMBLEM_ALLY then
