@@ -58,6 +58,9 @@ local isListEnabled = true
 local isTrackerEnabled = true
 local maxFloorsAbove = 7
 local maxFloorsBelow = 7
+local showPartyMembers = true
+local showGuildMates = true
+local subSortOrder = "vocation" -- Can be "vocation" or "level"
 local settingsIcon = nil
 local settingsModal = nil
 
@@ -93,6 +96,12 @@ local function onModalButtonClick(buttonIndex)
     elseif buttonIndex == 5 then
         isTrackerEnabled = not isTrackerEnabled
     elseif buttonIndex == 6 then
+        showPartyMembers = not showPartyMembers
+    elseif buttonIndex == 7 then
+        showGuildMates = not showGuildMates
+    elseif buttonIndex == 8 then
+        subSortOrder = (subSortOrder == "vocation" and "level" or "vocation")
+    elseif buttonIndex == 9 then
         -- Save & Close button
         if settingsModal then
             settingsModal:destroy()
@@ -110,6 +119,9 @@ openSettingsModal = function()
 
     local listStatus = isListEnabled and "List: ON" or "List: OFF"
     local trackerStatus = isTrackerEnabled and "Tracker: ON" or "Tracker: OFF"
+    local partyStatus = showPartyMembers and "Party: ON" or "Party: OFF"
+    local guildStatus = showGuildMates and "Guild: ON" or "Guild: OFF"
+    local sortStatus = "Sort by: " .. subSortOrder:gsub("^%l", string.upper)
     local description = string.format("Floors Above: %d | Floors Below: %d", maxFloorsAbove, maxFloorsBelow)
 
     settingsModal = CustomModalWindow("Player Display Settings", description)
@@ -119,6 +131,9 @@ openSettingsModal = function()
     settingsModal:addButton("Floors Below [+]")
     settingsModal:addButton(listStatus)
     settingsModal:addButton(trackerStatus)
+    settingsModal:addButton(partyStatus)
+    settingsModal:addButton(guildStatus)
+    settingsModal:addButton(sortStatus)
     settingsModal:addButton("Save & Close")
 
     settingsModal:setCallback(onModalButtonClick)
@@ -169,10 +184,15 @@ local function updatePlayerDisplays()
                                     local zO = crP.z - myPos_list.z
                                     local sS = (zO == 0) or (zO < 0 and math.abs(zO) <= maxFloorsAbove) or (zO > 0 and zO <= maxFloorsBelow)
                                     if sS then
-                                        if not pByFloor[zO] then
-                                            pByFloor[zO] = {}
+                                        local pData = { cid = cid, name = n, level = knownPlayerLevels[n:lower()], vocationId = cr:getVocation(), skullId = cr:getSkull(), partyIconId = cr:getPartyIcon(), guildEmblemId = cr:getGuildEmblem() }
+                                        local isParty = pData.partyIconId >= Enums.PartyIcons.SHIELD_BLUE and pData.partyIconId <= Enums.PartyIcons.SHIELD_YELLOW_NOSHAREDEXP
+                                        local isGuild = pData.guildEmblemId == Enums.GuildEmblem.GUILDEMBLEM_MEMBER or pData.guildEmblemId == Enums.GuildEmblem.GUILDEMBLEM_ALLY
+                                        if (not isParty or showPartyMembers) and (not isGuild or showGuildMates) then
+                                            if not pByFloor[zO] then
+                                                pByFloor[zO] = {}
+                                            end
+                                            table.insert(pByFloor[zO], pData)
                                         end
-                                        table.insert(pByFloor[zO], { cid = cid, name = n, level = knownPlayerLevels[n:lower()], vocationId = cr:getVocation(), skullId = cr:getSkull(), partyIconId = cr:getPartyIcon(), guildEmblemId = cr:getGuildEmblem() })
                                     end
                                 end
                             end
@@ -183,7 +203,7 @@ local function updatePlayerDisplays()
                     table.sort(pL, function(a, b)
                         local function getPriority(p)
                             -- First, check for ally status, as this overrides most other states.
-                            if p.partyIconId ~= Enums.PartyIcons.SHIELD_NONE and p.partyIconId ~= Enums.PartyIcons.SHIELD_GRAY and p.partyIconId ~= Enums.PartyIcons.SHIELD_WHITEYELLOW and p.partyIconId ~= Enums.PartyIcons.SHIELD_WHITEBLUE then
+                            if p.partyIconId >= Enums.PartyIcons.SHIELD_BLUE and p.partyIconId <= Enums.PartyIcons.SHIELD_YELLOW_NOSHAREDEXP then
                                 return 4
                             end -- PARTY
                             if p.guildEmblemId == Enums.GuildEmblem.GUILDEMBLEM_MEMBER or p.guildEmblemId == Enums.GuildEmblem.GUILDEMBLEM_ALLY then
@@ -205,17 +225,33 @@ local function updatePlayerDisplays()
                         if pA ~= pB then
                             return pA < pB
                         end
-                        if a.vocationId ~= b.vocationId then
-                            return a.vocationId < b.vocationId
-                        end
-                        if a.level and b.level then
-                            if a.level ~= b.level then
-                                return a.level > b.level
+                        if subSortOrder == "vocation" then
+                            if a.vocationId ~= b.vocationId then
+                                return a.vocationId < b.vocationId
                             end
-                        elseif a.level then
-                            return true
-                        elseif b.level then
-                            return false
+                            if a.level and b.level then
+                                if a.level ~= b.level then
+                                    return a.level > b.level
+                                end
+                            elseif a.level then
+                                return true
+                            elseif b.level then
+                                return false
+                            end
+                        else
+                            -- sort by level first
+                            if a.level and b.level then
+                                if a.level ~= b.level then
+                                    return a.level > b.level
+                                end
+                            elseif a.level then
+                                return true
+                            elseif b.level then
+                                return false
+                            end
+                            if a.vocationId ~= b.vocationId then
+                                return a.vocationId < b.vocationId
+                            end
                         end
                         return a.name:lower() < b.name:lower()
                     end)
@@ -260,7 +296,8 @@ local function updatePlayerDisplays()
                             local dTxt = pData.name .. " (" .. vS .. lvlS .. ")"
                             local tX = sId and (LIST_MARGIN_X - (32 * SKULL_ICON_SCALE) - 5) or LIST_MARGIN_X
                             local clr = COLORS.NORMAL
-                            if pData.partyIconId ~= Enums.PartyIcons.SHIELD_NONE and pData.partyIconId ~= Enums.PartyIcons.SHIELD_GRAY and pData.partyIconId ~= Enums.PartyIcons.SHIELD_WHITEYELLOW and pData.partyIconId ~= Enums.PartyIcons.SHIELD_WHITEBLUE then
+                            --
+                            if pData.partyIconId >= Enums.PartyIcons.SHIELD_BLUE and pData.partyIconId <= Enums.PartyIcons.SHIELD_YELLOW_NOSHAREDEXP then
                                 clr = COLORS.PARTY
                             elseif pData.guildEmblemId == Enums.GuildEmblem.GUILDEMBLEM_MEMBER or pData.guildEmblemId == Enums.GuildEmblem.GUILDEMBLEM_ALLY then
                                 clr = COLORS.GUILD
