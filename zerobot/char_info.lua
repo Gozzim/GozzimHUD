@@ -62,6 +62,7 @@ local showPartyMembers = true
 local showGuildMates = true
 local subSortOrder = "vocation"
 local isCategorySortEnabled = true
+local isColorCodingEnabled = true
 local settingsIcon = nil
 local settingsModal = nil
 
@@ -105,6 +106,8 @@ local function onModalButtonClick(buttonIndex)
     elseif buttonIndex == 9 then
         isCategorySortEnabled = not isCategorySortEnabled
     elseif buttonIndex == 10 then
+        isColorCodingEnabled = not isColorCodingEnabled
+    elseif buttonIndex == 11 then
         -- Save & Close button
         if settingsModal then
             settingsModal:destroy()
@@ -126,6 +129,7 @@ openSettingsModal = function()
     local guildStatus = showGuildMates and "Guild: ON" or "Guild: OFF"
     local sortStatus = "Sort by: " .. subSortOrder:gsub("^%l", string.upper)
     local categorySortStatus = isCategorySortEnabled and "Categorize: ON" or "Categorize: OFF"
+    local colorStatus = isColorCodingEnabled and "Colors: ON" or "Colors: OFF"
     local description = string.format("Floors Above: %d | Floors Below: %d", maxFloorsAbove, maxFloorsBelow)
 
     settingsModal = CustomModalWindow("Player Display Settings", description)
@@ -139,6 +143,7 @@ openSettingsModal = function()
     settingsModal:addButton(guildStatus)
     settingsModal:addButton(sortStatus)
     settingsModal:addButton(categorySortStatus)
+    settingsModal:addButton(colorStatus)
     settingsModal:addButton("Save & Close")
 
     settingsModal:setCallback(onModalButtonClick)
@@ -305,16 +310,18 @@ local function updatePlayerDisplays()
                             local dTxt = pData.name .. " (" .. vS .. lvlS .. ")"
                             local tX = sId and (LIST_MARGIN_X - (32 * SKULL_ICON_SCALE) - 5) or LIST_MARGIN_X
                             local clr = COLORS.NORMAL
-                            if pData.partyIconId >= Enums.PartyIcons.SHIELD_BLUE and pData.partyIconId <= Enums.PartyIcons.SHIELD_YELLOW_NOSHAREDEXP then
-                                clr = COLORS.PARTY
-                            elseif pData.guildEmblemId == Enums.GuildEmblem.GUILDEMBLEM_MEMBER or pData.guildEmblemId == Enums.GuildEmblem.GUILDEMBLEM_ALLY then
-                                clr = COLORS.GUILD
-                            elseif pData.guildEmblemId == Enums.GuildEmblem.GUILDEMBLEM_ENEMY then
-                                clr = COLORS.ENEMY
-                            elseif pData.skullId == Enums.Skulls.SKULL_RED or pData.skullId == Enums.Skulls.SKULL_BLACK then
-                                clr = COLORS.RED_SKULL
-                            elseif pData.skullId ~= Enums.Skulls.SKULL_NONE and pData.skullId ~= Enums.Skulls.SKULL_GREEN then
-                                clr = COLORS.WHITE_SKULL
+                            if isColorCodingEnabled then
+                                if pData.partyIconId >= Enums.PartyIcons.SHIELD_BLUE and pData.partyIconId <= Enums.PartyIcons.SHIELD_YELLOW_NOSHAREDEXP then
+                                    clr = COLORS.PARTY
+                                elseif pData.guildEmblemId == Enums.GuildEmblem.GUILDEMBLEM_MEMBER or pData.guildEmblemId == Enums.GuildEmblem.GUILDEMBLEM_ALLY then
+                                    clr = COLORS.GUILD
+                                elseif pData.guildEmblemId == Enums.GuildEmblem.GUILDEMBLEM_ENEMY then
+                                    clr = COLORS.ENEMY
+                                elseif pData.skullId == Enums.Skulls.SKULL_RED or pData.skullId == Enums.Skulls.SKULL_BLACK then
+                                    clr = COLORS.RED_SKULL
+                                elseif pData.skullId ~= Enums.Skulls.SKULL_NONE and pData.skullId ~= Enums.Skulls.SKULL_GREEN then
+                                    clr = COLORS.WHITE_SKULL
+                                end
                             end
                             if not activePlayerHuds[cid] then
                                 activePlayerHuds[cid] = {}
