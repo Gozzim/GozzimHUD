@@ -49,7 +49,7 @@ local isColorCodingEnabled = true
 local isAutoLookEnabled = false
 local showPlayers = true
 local showMonsters = true
-local showNpcs = true
+local showNpcs = false
 local settingsIcon = nil
 local settingsModal = nil
 local function onPlayerTalk(name, level, mode, text)
@@ -77,23 +77,23 @@ local function onModalButtonClick(buttonIndex)
     elseif buttonIndex == 3 then
         maxFloorsBelow = math.min(7, maxFloorsBelow + 1)
     elseif buttonIndex == 4 then
-        showPlayers = not showPlayers
+        isTrackerEnabled = not isTrackerEnabled
     elseif buttonIndex == 5 then
         isListEnabled = not isListEnabled
     elseif buttonIndex == 6 then
-        isTrackerEnabled = not isTrackerEnabled
+        isColorCodingEnabled = not isColorCodingEnabled
     elseif buttonIndex == 7 then
-        showPartyMembers = not showPartyMembers
+        isAutoLookEnabled = not isAutoLookEnabled
     elseif buttonIndex == 8 then
         showGuildMates = not showGuildMates
     elseif buttonIndex == 9 then
-        subSortOrder = (subSortOrder == "vocation" and "level" or "vocation")
+        showPartyMembers = not showPartyMembers
     elseif buttonIndex == 10 then
         isCategorySortEnabled = not isCategorySortEnabled
     elseif buttonIndex == 11 then
-        isColorCodingEnabled = not isColorCodingEnabled
+        subSortOrder = (subSortOrder == "vocation" and "level" or "vocation")
     elseif buttonIndex == 12 then
-        isAutoLookEnabled = not isAutoLookEnabled
+        showPlayers = not showPlayers
     elseif buttonIndex == 13 then
         showMonsters = not showMonsters
     elseif buttonIndex == 14 then
@@ -128,19 +128,30 @@ openSettingsModal = function()
     settingsModal:addButton('Floors Above [+]')
     settingsModal:addButton('Floors Below [-]')
     settingsModal:addButton('Floors Below [+]')
-    settingsModal:addButton(playerStatus)
-    settingsModal:addButton(listStatus)
     settingsModal:addButton(trackerStatus)
-    settingsModal:addButton(partyStatus)
-    settingsModal:addButton(guildStatus)
-    settingsModal:addButton(sortStatus)
-    settingsModal:addButton(categorySortStatus)
+    settingsModal:addButton(listStatus)
     settingsModal:addButton(colorStatus)
     settingsModal:addButton(autoLookStatus)
+    settingsModal:addButton(guildStatus)
+    settingsModal:addButton(partyStatus)
+    settingsModal:addButton(categorySortStatus)
+    settingsModal:addButton(sortStatus)
+    settingsModal:addButton(playerStatus)
     settingsModal:addButton(monsterStatus)
     settingsModal:addButton(npcStatus)
     settingsModal:addButton("Save & Close")
     settingsModal:setCallback(onModalButtonClick)
+end
+local function cleanupSectionHuds(hudsTable, headerHudsTable)
+    for k, huds in pairs(hudsTable) do
+        if huds.skullHud then huds.skullHud:destroy() end
+        if huds.textHud then huds.textHud:destroy() end
+        hudsTable[k] = nil
+    end
+    for k, h in pairs(headerHudsTable) do
+        h:destroy()
+        headerHudsTable[k] = nil
+    end
 end
 local function updatePlayerDisplays()
     local myId = Player.getId()
@@ -193,7 +204,8 @@ local function updatePlayerDisplays()
     local yOff = LIST_START_Y
 
     -- Players Section
-    if isListEnabled and showPlayers and myPos_list then -- Added showPlayers check
+    local playersRendered = false
+    if isListEnabled and showPlayers and myPos_list then
         local pFound_list, pByFloor = {}, {}
         local totalPlayersDisplayed = 0
         if allCreaturesOnScreen then
@@ -289,6 +301,7 @@ local function updatePlayerDisplays()
 
         -- Render Players Section if not empty
         if totalPlayersDisplayed > 0 then
+            playersRendered = true
             local hFound = {}
             local playerHeaderTxt = "PLAYERS: " .. totalPlayersDisplayed
             if not activeHeaderHuds["players_header"] then
@@ -392,29 +405,14 @@ local function updatePlayerDisplays()
                 end
             end
         else -- If totalPlayersDisplayed is 0, destroy all player HUDs
-            for c, h in pairs(activePlayerHuds) do
-                if h.skullHud then h.skullHud:destroy() end
-                if h.textHud then h.textHud:destroy() end
-                activePlayerHuds[c] = nil
-            end
-            for z, h in pairs(activeHeaderHuds) do
-                h:destroy()
-                activeHeaderHuds[z] = nil
-            end
+            cleanupSectionHuds(activePlayerHuds, activeHeaderHuds)
         end
     else -- If isListEnabled or showPlayers is false, destroy all player HUDs
-        for c, h in pairs(activePlayerHuds) do
-            if h.skullHud then h.skullHud:destroy() end
-            if h.textHud then h.textHud:destroy() end
-            activePlayerHuds[c] = nil
-        end
-        for z, h in pairs(activeHeaderHuds) do
-            h:destroy()
-            activeHeaderHuds[z] = nil
-        end
+        cleanupSectionHuds(activePlayerHuds, activeHeaderHuds)
     end
 
     -- Monsters Section
+    local monstersRendered = false
     if isListEnabled and showMonsters and myPos_list then
         local mFound_list, mByFloor = {}, {}
         local totalMonstersDisplayed = 0
@@ -448,6 +446,7 @@ local function updatePlayerDisplays()
 
         -- Render Monsters Section if not empty
         if totalMonstersDisplayed > 0 then
+            monstersRendered = true
             local monsterHeaderTxt = "CREATURES: " .. totalMonstersDisplayed
             if not activeMonsterHeaderHuds["monsters_header"] then
                 activeMonsterHeaderHuds["monsters_header"] = HUD.new(LIST_MARGIN_X, yOff, monsterHeaderTxt, true)
@@ -527,27 +526,14 @@ local function updatePlayerDisplays()
                 end
             end
         else -- If totalMonstersDisplayed is 0, destroy all monster HUDs
-            for name, huds in pairs(activeMonsterHuds) do
-                huds.textHud:destroy()
-                activeMonsterHuds[name] = nil
-            end
-            for z, h in pairs(activeMonsterHeaderHuds) do
-                h:destroy()
-                activeMonsterHeaderHuds[z] = nil
-            end
+            cleanupSectionHuds(activeMonsterHuds, activeMonsterHeaderHuds)
         end
     else -- If isListEnabled or showMonsters is false, destroy all monster HUDs
-        for name, huds in pairs(activeMonsterHuds) do
-            huds.textHud:destroy()
-            activeMonsterHuds[name] = nil
-        end
-        for z, h in pairs(activeMonsterHeaderHuds) do
-            h:destroy()
-            activeMonsterHeaderHuds[z] = nil
-        end
+        cleanupSectionHuds(activeMonsterHuds, activeMonsterHeaderHuds)
     end
 
     -- NPCs Section
+    local npcsRendered = false
     if isListEnabled and showNpcs and myPos_list then
         local nFound_list, nByFloor = {}, {}
         local totalNpcsDisplayed = 0
@@ -583,6 +569,7 @@ local function updatePlayerDisplays()
 
         -- Render NPCs Section if not empty
         if totalNpcsDisplayed > 0 then
+            npcsRendered = true
             local npcHeaderTxt = "NPCs: " .. totalNpcsDisplayed
             if not activeNpcHeaderHuds["npcs_header"] then
                 activeNpcHeaderHuds["npcs_header"] = HUD.new(LIST_MARGIN_X, yOff, npcHeaderTxt, true)
@@ -661,24 +648,10 @@ local function updatePlayerDisplays()
                 end
             end
         else -- If totalNpcsDisplayed is 0, destroy all NPC HUDs
-            for name, huds in pairs(activeNpcHuds) do
-                huds.textHud:destroy()
-                activeNpcHuds[name] = nil
-            end
-            for z, h in pairs(activeNpcHeaderHuds) do
-                h:destroy()
-                activeNpcHeaderHuds[z] = nil
-            end
+            cleanupSectionHuds(activeNpcHuds, activeNpcHeaderHuds)
         end
     else -- If isListEnabled or showNpcs is false, destroy all NPC HUDs
-        for name, huds in pairs(activeNpcHuds) do
-            huds.textHud:destroy()
-            activeNpcHuds[name] = nil
-        end
-        for z, h in pairs(activeNpcHeaderHuds) do
-            h:destroy()
-            activeNpcHeaderHuds[z] = nil
-        end
+        cleanupSectionHuds(activeNpcHuds, activeNpcHeaderHuds)
     end
 
     -- Tracker Section
