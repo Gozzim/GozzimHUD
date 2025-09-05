@@ -91,7 +91,13 @@ local function onModalButtonClick(buttonIndex)
     elseif buttonIndex == 10 then
         isCategorySortEnabled = not isCategorySortEnabled
     elseif buttonIndex == 11 then
-        subSortOrder = (subSortOrder == "vocation" and "level" or "vocation")
+        if subSortOrder == "vocation" then
+            subSortOrder = "level"
+        elseif subSortOrder == "level" then
+            subSortOrder = "alphabet"
+        else
+            subSortOrder = "vocation"
+        end
     elseif buttonIndex == 12 then
         showPlayers = not showPlayers
     elseif buttonIndex == 13 then
@@ -266,6 +272,7 @@ local function updatePlayerDisplays()
                     if a.vocationId ~= b.vocationId then
                         return a.vocationId < b.vocationId
                     end
+                    -- Tie-breaker for vocation: level (desc), then alphabet
                     if a.level and b.level then
                         if a.level ~= b.level then
                             return a.level > b.level
@@ -275,7 +282,9 @@ local function updatePlayerDisplays()
                     elseif b.level then
                         return false
                     end
-                else
+                    return a.name:lower() < b.name:lower()
+                elseif subSortOrder == "level" then
+                    -- Primary sort by level (desc)
                     if a.level and b.level then
                         if a.level ~= b.level then
                             return a.level > b.level
@@ -285,10 +294,32 @@ local function updatePlayerDisplays()
                     elseif b.level then
                         return false
                     end
+                    -- Tie-breaker for level: vocation, then alphabet
                     if a.vocationId ~= b.vocationId then
                         return a.vocationId < b.vocationId
                     end
+                    return a.name:lower() < b.name:lower()
+                elseif subSortOrder == "alphabet" then
+                    -- Primary sort by alphabet
+                    if a.name:lower() ~= b.name:lower() then
+                        return a.name:lower() < b.name:lower()
+                    end
+                    -- Tie-breaker for alphabet: vocation, then level (desc)
+                    if a.vocationId ~= b.vocationId then
+                        return a.vocationId < b.vocationId
+                    end
+                    if a.level and b.level then
+                        if a.level ~= b.level then
+                            return a.level > b.level
+                        end
+                    elseif a.level then
+                        return true
+                    elseif b.level then
+                        return false
+                    end
+                    return false -- Should not be reached if all fields are equal
                 end
+                -- Fallback (should not be reached if subSortOrder is always one of the three)
                 return a.name:lower() < b.name:lower()
             end)
         end
