@@ -63,6 +63,7 @@ local showGuildMates = true
 local subSortOrder = "vocation"
 local isCategorySortEnabled = true
 local isColorCodingEnabled = true
+local isAutoLookEnabled = false
 local settingsIcon = nil
 local settingsModal = nil
 
@@ -108,6 +109,8 @@ local function onModalButtonClick(buttonIndex)
     elseif buttonIndex == 10 then
         isColorCodingEnabled = not isColorCodingEnabled
     elseif buttonIndex == 11 then
+        isAutoLookEnabled = not isAutoLookEnabled
+    elseif buttonIndex == 12 then
         -- Save & Close button
         if settingsModal then
             settingsModal:destroy()
@@ -123,20 +126,21 @@ openSettingsModal = function()
         settingsModal:destroy()
     end
 
-    local listStatus = isListEnabled and "List: ON" or "List: OFF"
-    local trackerStatus = isTrackerEnabled and "Tracker: ON" or "Tracker: OFF"
-    local partyStatus = showPartyMembers and "Party: ON" or "Party: OFF"
-    local guildStatus = showGuildMates and "Guild: ON" or "Guild: OFF"
+    local listStatus = isListEnabled and 'List: <font color="#00FF00">ON</font>' or 'List: <font color="#FF6666">OFF</font>'
+    local trackerStatus = isTrackerEnabled and 'Tracker: <font color="#00FF00">ON</font>' or 'Tracker: <font color="#FF6666">OFF</font>'
+    local partyStatus = showPartyMembers and 'Party: <font color="#00FF00">ON</font>' or 'Party: <font color="#FF6666">OFF</font>'
+    local guildStatus = showGuildMates and 'Guild: <font color="#00FF00">ON</font>' or 'Guild: <font color="#FF6666">OFF</font>'
     local sortStatus = "Sort by: " .. subSortOrder:gsub("^%l", string.upper)
-    local categorySortStatus = isCategorySortEnabled and "Categorize: ON" or "Categorize: OFF"
-    local colorStatus = isColorCodingEnabled and "Colors: ON" or "Colors: OFF"
+    local categorySortStatus = isCategorySortEnabled and 'Categorize: <font color="#00FF00">ON</font>' or 'Categorize: <font color="#FF6666">OFF</font>'
+    local colorStatus = isColorCodingEnabled and 'Colors: <font color="#00FF00">ON</font>' or 'Colors: <font color="#FF6666">OFF</font>'
+    local autoLookStatus = isAutoLookEnabled and 'Auto Look: <font color="#00FF00">ON</font>' or 'Auto Look: <font color="#FF6666">OFF</font>'
     local description = string.format("Floors Above: %d | Floors Below: %d", maxFloorsAbove, maxFloorsBelow)
 
     settingsModal = CustomModalWindow("Player Display Settings", description)
-    settingsModal:addButton("Floors Above [-]")
-    settingsModal:addButton("Floors Above [+]")
-    settingsModal:addButton("Floors Below [-]")
-    settingsModal:addButton("Floors Below [+]")
+    settingsModal:addButton('Floors Above [-]')
+    settingsModal:addButton('Floors Above [+]')
+    settingsModal:addButton('Floors Below [-]')
+    settingsModal:addButton('Floors Below [+]')
     settingsModal:addButton(listStatus)
     settingsModal:addButton(trackerStatus)
     settingsModal:addButton(partyStatus)
@@ -144,6 +148,7 @@ openSettingsModal = function()
     settingsModal:addButton(sortStatus)
     settingsModal:addButton(categorySortStatus)
     settingsModal:addButton(colorStatus)
+    settingsModal:addButton(autoLookStatus)
     settingsModal:addButton("Save & Close")
 
     settingsModal:setCallback(onModalButtonClick)
@@ -175,6 +180,44 @@ local function updatePlayerDisplays()
         end
     end
 
+    local allPlayers = Map.getCreatureIds(false, true) -- Get all players once for this tick
+
+    -- Auto-Look logic
+    if isAutoLookEnabled and allPlayers then
+        local knownPlayerPositions = {}
+        local unknownPlayersByPosition = {}
+
+        -- First, categorize all players on screen into known/unknown and group by position.
+        for _, cid in ipairs(allPlayers) do
+            if cid ~= myId then
+                local creature = Creature(cid)
+                local name = creature:getName()
+                if name then
+                    local pos = creature:getPosition()
+                    if pos then
+                        local posKey = pos.x .. "," .. pos.y .. "," .. pos.z
+                        if knownPlayerLevels[name:lower()] then
+                            knownPlayerPositions[posKey] = true
+                        else
+                            if not unknownPlayersByPosition[posKey] then unknownPlayersByPosition[posKey] = {} end
+                            table.insert(unknownPlayersByPosition[posKey], pos)
+                        end
+                    end
+                end
+            end
+        end
+
+        -- Now, decide whether to look.
+        for posKey, positions in pairs(unknownPlayersByPosition) do
+            -- Only look at a stack of unknown players if there are NO known players on that same tile.
+            if not knownPlayerPositions[posKey] then
+                local posToLookAt = positions[1]
+                Map.lookAt(posToLookAt.x, posToLookAt.y, posToLookAt.z) --
+                break -- Only look at one stack per tick to avoid spam.
+            end
+        end
+    end
+
     -- Main logic for side-list
     if isListEnabled then
         local myPlayer_list = Creature(myId)
@@ -182,9 +225,8 @@ local function updatePlayerDisplays()
             local myPos_list = myPlayer_list:getPosition()
             if myPos_list then
                 local pFound_list, pByFloor = {}, {}
-                local allP_list = Map.getCreatureIds(false, true)
-                if allP_list then
-                    for _, cid in ipairs(allP_list) do
+                if allPlayers then
+                    for _, cid in ipairs(allPlayers) do
                         if cid ~= myId then
                             local cr = Creature(cid)
                             local n = cr:getName()
