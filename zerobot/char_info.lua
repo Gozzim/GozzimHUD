@@ -27,7 +27,7 @@ local VOCATION_COLORS = {
     [Enums.Vocations.MONK] = { r = 150, g = 75, b = 0 },
     [Enums.Vocations.NONE] = COLORS.NORMAL
 }
-local vocationMap = { [1] = "EK", [2] = "RP", [3] = "MS", [4] = "ED", [5] = "MK", [0] = "?" }
+local vocationMap = { [1] = "EK", [2] = "RP", [3] = "MS", [4] = "ED", [5] = "EM", [0] = "?" }
 local skullIconMap = { [1] = 37339, [2] = 37341, [3] = 37337, [4] = 37338, [5] = 37335, [6] = 37340 }
 local knownPlayerLevels = {}
 local activePlayerHuds = {}
