@@ -47,6 +47,7 @@ local subSortOrder = "vocation"
 local isCategorySortEnabled = true
 local isColorCodingEnabled = true
 local isAutoLookEnabled = false
+local showPlayers = true
 local showMonsters = true
 local showNpcs = true
 local settingsIcon = nil
@@ -76,26 +77,28 @@ local function onModalButtonClick(buttonIndex)
     elseif buttonIndex == 3 then
         maxFloorsBelow = math.min(7, maxFloorsBelow + 1)
     elseif buttonIndex == 4 then
-        isListEnabled = not isListEnabled
+        showPlayers = not showPlayers
     elseif buttonIndex == 5 then
-        isTrackerEnabled = not isTrackerEnabled
+        isListEnabled = not isListEnabled
     elseif buttonIndex == 6 then
-        showPartyMembers = not showPartyMembers
+        isTrackerEnabled = not isTrackerEnabled
     elseif buttonIndex == 7 then
-        showGuildMates = not showGuildMates
+        showPartyMembers = not showPartyMembers
     elseif buttonIndex == 8 then
-        subSortOrder = (subSortOrder == "vocation" and "level" or "vocation")
+        showGuildMates = not showGuildMates
     elseif buttonIndex == 9 then
-        isCategorySortEnabled = not isCategorySortEnabled
+        subSortOrder = (subSortOrder == "vocation" and "level" or "vocation")
     elseif buttonIndex == 10 then
-        isColorCodingEnabled = not isColorCodingEnabled
+        isCategorySortEnabled = not isCategorySortEnabled
     elseif buttonIndex == 11 then
-        isAutoLookEnabled = not isAutoLookEnabled
+        isColorCodingEnabled = not isColorCodingEnabled
     elseif buttonIndex == 12 then
-        showMonsters = not showMonsters
+        isAutoLookEnabled = not isAutoLookEnabled
     elseif buttonIndex == 13 then
-        showNpcs = not showNpcs
+        showMonsters = not showMonsters
     elseif buttonIndex == 14 then
+        showNpcs = not showNpcs
+    elseif buttonIndex == 15 then
         if settingsModal then
             settingsModal:destroy()
         end
@@ -108,6 +111,7 @@ openSettingsModal = function()
     if settingsModal then
         settingsModal:destroy()
     end
+    local playerStatus = showPlayers and 'Players: <font color="#00FF00">ON</font>' or 'Players: <font color="#FF6666">OFF</font>'
     local listStatus = isListEnabled and 'List: <font color="#00FF00">ON</font>' or 'List: <font color="#FF6666">OFF</font>'
     local trackerStatus = isTrackerEnabled and 'Tracker: <font color="#00FF00">ON</font>' or 'Tracker: <font color="#FF6666">OFF</font>'
     local partyStatus = showPartyMembers and 'Party: <font color="#00FF00">ON</font>' or 'Party: <font color="#FF6666">OFF</font>'
@@ -124,6 +128,7 @@ openSettingsModal = function()
     settingsModal:addButton('Floors Above [+]')
     settingsModal:addButton('Floors Below [-]')
     settingsModal:addButton('Floors Below [+]')
+    settingsModal:addButton(playerStatus)
     settingsModal:addButton(listStatus)
     settingsModal:addButton(trackerStatus)
     settingsModal:addButton(partyStatus)
@@ -141,45 +146,19 @@ local function updatePlayerDisplays()
     local myId = Player.getId()
     local myPlayer_list = Creature(myId)
     local myPos_list = myPlayer_list and myPlayer_list:getPosition()
-    if not isListEnabled then
-        for c, h in pairs(activePlayerHuds) do
-            if h.skullHud then h.skullHud:destroy() end
-            if h.textHud then h.textHud:destroy() end
-            activePlayerHuds[c] = nil
-        end
-        for z, h in pairs(activeHeaderHuds) do
-            h:destroy()
-            activeHeaderHuds[z] = nil
-        end
-    end
-    if not showMonsters then
-        for name, huds in pairs(activeMonsterHuds) do
-            huds.textHud:destroy()
-            activeMonsterHuds[name] = nil
-        end
-        for z, h in pairs(activeMonsterHeaderHuds) do
-            h:destroy()
-            activeMonsterHeaderHuds[z] = nil
-        end
-    end
-    if not showNpcs then
-        for name, huds in pairs(activeNpcHuds) do
-            huds.textHud:destroy()
-            activeNpcHuds[name] = nil
-        end
-        for z, h in pairs(activeNpcHeaderHuds) do
-            h:destroy()
-            activeNpcHeaderHuds[z] = nil
-        end
-    end
+
+    -- Cleanup for tracker HUDs
     if not isTrackerEnabled then
         for c, h in pairs(activeTrackerHuds) do
             h:destroy()
             activeTrackerHuds[c] = nil
         end
     end
+
     local allCreaturesOnScreen = Map.getCreatureIds(false, false)
-    if isAutoLookEnabled and isListEnabled and allCreaturesOnScreen then
+
+    -- Auto-Look logic
+    if isAutoLookEnabled and isListEnabled and showPlayers and allCreaturesOnScreen then
         local knownPlayerPositions = {}
         local unknownPlayersByPosition = {}
         for _, cid in ipairs(allCreaturesOnScreen) do
@@ -210,8 +189,11 @@ local function updatePlayerDisplays()
             end
         end
     end
+
     local yOff = LIST_START_Y
-    if isListEnabled and myPos_list then
+
+    -- Players Section
+    if isListEnabled and showPlayers and myPos_list then -- Added showPlayers check
         local pFound_list, pByFloor = {}, {}
         local totalPlayersDisplayed = 0
         if allCreaturesOnScreen then
@@ -243,6 +225,8 @@ local function updatePlayerDisplays()
                 end
             end
         end
+
+        -- Sort players
         for z, pL in pairs(pByFloor) do
             table.sort(pL, function(a, b)
                 if isCategorySortEnabled then
@@ -296,113 +280,142 @@ local function updatePlayerDisplays()
                 return a.name:lower() < b.name:lower()
             end)
         end
+
         local fRend = {}
         for z, _ in pairs(pByFloor) do
             table.insert(fRend, z)
         end
         table.sort(fRend)
-        local hFound = {}
-        local playerHeaderTxt = "PLAYERS: " .. totalPlayersDisplayed
-        if not activeHeaderHuds["players_header"] then
-            activeHeaderHuds["players_header"] = HUD.new(LIST_MARGIN_X, yOff, playerHeaderTxt, true)
-            activeHeaderHuds["players_header"]:setHorizontalAlignment(Enums.HorizontalAlign.Right)
-        else
-            activeHeaderHuds["players_header"]:setText(playerHeaderTxt)
-            activeHeaderHuds["players_header"]:setPos(LIST_MARGIN_X, yOff)
-        end
-        activeHeaderHuds["players_header"]:setColor(COLORS.HEADER.r, COLORS.HEADER.g, COLORS.HEADER.b)
-        yOff = yOff + LIST_SPACING_Y
-        for _, z in ipairs(fRend) do
-            local pL = pByFloor[z]
-            if #pL > 0 then
-                local hTxt, hClr
-                if z == 0 then
-                    hTxt = "--- Same Floor ---"
-                    hClr = COLORS.SAME_FLOOR
-                elseif z < 0 then
-                    hTxt = "--- Floor +" .. math.abs(z) .. " ---"
-                    hClr = COLORS.FLOOR
-                else
-                    hTxt = "--- Floor -" .. z .. " ---"
-                    hClr = COLORS.FLOOR
-                end
-                hFound[z] = true
-                if not activeHeaderHuds[z] then
-                    activeHeaderHuds[z] = HUD.new(LIST_MARGIN_X, yOff, hTxt, true)
-                    activeHeaderHuds[z]:setHorizontalAlignment(Enums.HorizontalAlign.Right)
-                else
-                    activeHeaderHuds[z]:setText(hTxt)
-                    activeHeaderHuds[z]:setPos(LIST_MARGIN_X, yOff)
-                end
-                activeHeaderHuds[z]:setColor(hClr.r, hClr.g, hClr.b)
-                yOff = yOff + LIST_SPACING_Y
-                for _, pData in ipairs(pL) do
-                    local cid = pData.cid
-                    pFound_list[cid] = true
-                    local sId = skullIconMap[pData.skullId]
-                    local vS = vocationMap[pData.vocationId] or "?"
-                    local lvlS = pData.level and ", " .. pData.level or ""
-                    local dTxt = pData.name .. " (" .. vS .. lvlS .. ")"
-                    local tX = sId and (LIST_MARGIN_X - (32 * SKULL_ICON_SCALE) - 5) or LIST_MARGIN_X
-                    local clr = COLORS.NORMAL
-                    if isColorCodingEnabled then
-                        if pData.partyIconId >= Enums.PartyIcons.SHIELD_BLUE and pData.partyIconId <= Enums.PartyIcons.SHIELD_YELLOW_NOSHAREDEXP then
-                            clr = COLORS.PARTY
-                        elseif pData.guildEmblemId == Enums.GuildEmblem.GUILDEMBLEM_MEMBER or pData.guildEmblemId == Enums.GuildEmblem.GUILDEMBLEM_ALLY then
-                            clr = COLORS.GUILD
-                        elseif pData.guildEmblemId == Enums.GuildEmblem.GUILDEMBLEM_ENEMY then
-                            clr = COLORS.ENEMY
-                        elseif pData.skullId == Enums.Skulls.SKULL_RED or pData.skullId == Enums.Skulls.SKULL_BLACK then
-                            clr = COLORS.RED_SKULL
-                        elseif pData.skullId ~= Enums.Skulls.SKULL_NONE and pData.skullId ~= Enums.Skulls.SKULL_GREEN then
-                            clr = COLORS.WHITE_SKULL
-                        end
-                    end
-                    if not activePlayerHuds[cid] then
-                        activePlayerHuds[cid] = {}
-                    end
-                    local huds = activePlayerHuds[cid]
-                    if sId then
-                        if not huds.skullHud then
-                            huds.skullHud = HUD.new(LIST_MARGIN_X, yOff, sId, true)
-                            huds.skullHud:setHorizontalAlignment(Enums.HorizontalAlign.Right)
-                            huds.skullHud:setScale(SKULL_ICON_SCALE)
-                        else
-                            huds.skullHud:setItemId(sId)
-                            huds.skullHud:setPos(LIST_MARGIN_X, yOff)
-                        end
-                    elseif huds.skullHud then
-                        huds.skullHud:destroy()
-                        huds.skullHud = nil
-                    end
-                    if not huds.textHud then
-                        huds.textHud = HUD.new(tX, yOff, dTxt, true)
-                        huds.textHud:setHorizontalAlignment(Enums.HorizontalAlign.Right)
+
+        -- Render Players Section if not empty
+        if totalPlayersDisplayed > 0 then
+            local hFound = {}
+            local playerHeaderTxt = "PLAYERS: " .. totalPlayersDisplayed
+            if not activeHeaderHuds["players_header"] then
+                activeHeaderHuds["players_header"] = HUD.new(LIST_MARGIN_X, yOff, playerHeaderTxt, true)
+                activeHeaderHuds["players_header"]:setHorizontalAlignment(Enums.HorizontalAlign.Right)
+            else
+                activeHeaderHuds["players_header"]:setText(playerHeaderTxt)
+                activeHeaderHuds["players_header"]:setPos(LIST_MARGIN_X, yOff)
+            end
+            activeHeaderHuds["players_header"]:setColor(COLORS.HEADER.r, COLORS.HEADER.g, COLORS.HEADER.b)
+            yOff = yOff + LIST_SPACING_Y
+
+            for _, z in ipairs(fRend) do
+                local pL = pByFloor[z]
+                if #pL > 0 then
+                    local hTxt, hClr
+                    if z == 0 then
+                        hTxt = "--- Same Floor ---"
+                        hClr = COLORS.SAME_FLOOR
+                    elseif z < 0 then
+                        hTxt = "--- Floor +" .. math.abs(z) .. " ---"
+                        hClr = COLORS.FLOOR
                     else
-                        huds.textHud:setText(dTxt)
-                        huds.textHud:setPos(tX, yOff)
+                        hTxt = "--- Floor -" .. z .. " ---"
+                        hClr = COLORS.FLOOR
                     end
-                    huds.textHud:setColor(clr.r, clr.g, clr.b)
+                    hFound[z] = true
+                    if not activeHeaderHuds[z] then
+                        activeHeaderHuds[z] = HUD.new(LIST_MARGIN_X, yOff, hTxt, true)
+                        activeHeaderHuds[z]:setHorizontalAlignment(Enums.HorizontalAlign.Right)
+                    else
+                        activeHeaderHuds[z]:setText(hTxt)
+                        activeHeaderHuds[z]:setPos(LIST_MARGIN_X, yOff)
+                    end
+                    activeHeaderHuds[z]:setColor(hClr.r, hClr.g, hClr.b)
                     yOff = yOff + LIST_SPACING_Y
+                    for _, pData in ipairs(pL) do
+                        local cid = pData.cid
+                        pFound_list[cid] = true
+                        local sId = skullIconMap[pData.skullId]
+                        local vS = vocationMap[pData.vocationId] or "?"
+                        local lvlS = pData.level and ", " .. pData.level or ""
+                        local dTxt = pData.name .. " (" .. vS .. lvlS .. ")"
+                        local tX = sId and (LIST_MARGIN_X - (32 * SKULL_ICON_SCALE) - 5) or LIST_MARGIN_X
+                        local clr = COLORS.NORMAL
+                        if isColorCodingEnabled then
+                            if pData.partyIconId >= Enums.PartyIcons.SHIELD_BLUE and pData.partyIconId <= Enums.PartyIcons.SHIELD_YELLOW_NOSHAREDEXP then
+                                clr = COLORS.PARTY
+                            elseif pData.guildEmblemId == Enums.GuildEmblem.GUILDEMBLEM_MEMBER or pData.guildEmblemId == Enums.GuildEmblem.GUILDEMBLEM_ALLY then
+                                clr = COLORS.GUILD
+                            elseif pData.guildEmblemId == Enums.GuildEmblem.GUILDEMBLEM_ENEMY then
+                                clr = COLORS.ENEMY
+                            elseif pData.skullId == Enums.Skulls.SKULL_RED or pData.skullId == Enums.Skulls.SKULL_BLACK then
+                                clr = COLORS.RED_SKULL
+                            elseif pData.skullId ~= Enums.Skulls.SKULL_NONE and pData.skullId ~= Enums.Skulls.SKULL_GREEN then
+                                clr = COLORS.WHITE_SKULL
+                            end
+                        end
+                        if not activePlayerHuds[cid] then
+                            activePlayerHuds[cid] = {}
+                        end
+                        local huds = activePlayerHuds[cid]
+                        if sId then
+                            if not huds.skullHud then
+                                huds.skullHud = HUD.new(LIST_MARGIN_X, yOff, sId, true)
+                                huds.skullHud:setHorizontalAlignment(Enums.HorizontalAlign.Right)
+                                huds.skullHud:setScale(SKULL_ICON_SCALE)
+                            else
+                                huds.skullHud:setItemId(sId)
+                                huds.skullHud:setPos(LIST_MARGIN_X, yOff)
+                            end
+                        elseif huds.skullHud then
+                            huds.skullHud:destroy()
+                            huds.skullHud = nil
+                        end
+                        if not huds.textHud then
+                            huds.textHud = HUD.new(tX, yOff, dTxt, true)
+                            huds.textHud:setHorizontalAlignment(Enums.HorizontalAlign.Right)
+                        else
+                            huds.textHud:setText(dTxt)
+                            huds.textHud:setPos(tX, yOff)
+                        end
+                        huds.textHud:setColor(clr.r, clr.g, clr.b)
+                        yOff = yOff + LIST_SPACING_Y
+                    end
+                    yOff = yOff + (LIST_SPACING_Y / 2)
                 end
-                yOff = yOff + (LIST_SPACING_Y / 2)
             end
-        end
-        for cid, huds in pairs(activePlayerHuds) do
-            if not pFound_list[cid] then
-                if huds.skullHud then huds.skullHud:destroy() end
-                if huds.textHud then huds.textHud:destroy() end
-                activePlayerHuds[cid] = nil
+            -- Cleanup for removed players or floor headers
+            for cid, huds in pairs(activePlayerHuds) do
+                if not pFound_list[cid] then
+                    if huds.skullHud then huds.skullHud:destroy() end
+                    if huds.textHud then huds.textHud:destroy() end
+                    activePlayerHuds[cid] = nil
+                end
             end
-        end
-        for z, hud in pairs(activeHeaderHuds) do
-            if z ~= "players_header" and not hFound[z] then
-                hud:destroy()
+            for z, hud in pairs(activeHeaderHuds) do
+                if z ~= "players_header" and not hFound[z] then
+                    hud:destroy()
+                    activeHeaderHuds[z] = nil
+                end
+            end
+        else -- If totalPlayersDisplayed is 0, destroy all player HUDs
+            for c, h in pairs(activePlayerHuds) do
+                if h.skullHud then h.skullHud:destroy() end
+                if h.textHud then h.textHud:destroy() end
+                activePlayerHuds[c] = nil
+            end
+            for z, h in pairs(activeHeaderHuds) do
+                h:destroy()
                 activeHeaderHuds[z] = nil
             end
         end
+    else -- If isListEnabled or showPlayers is false, destroy all player HUDs
+        for c, h in pairs(activePlayerHuds) do
+            if h.skullHud then h.skullHud:destroy() end
+            if h.textHud then h.textHud:destroy() end
+            activePlayerHuds[c] = nil
+        end
+        for z, h in pairs(activeHeaderHuds) do
+            h:destroy()
+            activeHeaderHuds[z] = nil
+        end
     end
-    if showMonsters and myPos_list then
+
+    -- Monsters Section
+    if isListEnabled and showMonsters and myPos_list then
         local mFound_list, mByFloor = {}, {}
         local totalMonstersDisplayed = 0
         if allCreaturesOnScreen then
@@ -432,84 +445,110 @@ local function updatePlayerDisplays()
             table.insert(mFRend, z)
         end
         table.sort(mFRend)
-        local monsterHeaderTxt = "CREATURES: " .. totalMonstersDisplayed
-        if not activeMonsterHeaderHuds["monsters_header"] then
-            activeMonsterHeaderHuds["monsters_header"] = HUD.new(LIST_MARGIN_X, yOff, monsterHeaderTxt, true)
-            activeMonsterHeaderHuds["monsters_header"]:setHorizontalAlignment(Enums.HorizontalAlign.Right)
-        else
-            activeMonsterHeaderHuds["monsters_header"]:setText(monsterHeaderTxt)
-            activeMonsterHeaderHuds["monsters_header"]:setPos(LIST_MARGIN_X, yOff)
-        end
-        activeMonsterHeaderHuds["monsters_header"]:setColor(COLORS.HEADER.r, COLORS.HEADER.g, COLORS.HEADER.b)
-        yOff = yOff + LIST_SPACING_Y
-        local mHFound = {}
-        for _, z in ipairs(mFRend) do
-            local mL = mByFloor[z]
-            if mL and next(mL) then
-                local hTxt, hClr
-                if z == 0 then
-                    hTxt = "--- Same Floor ---"
-                    hClr = COLORS.SAME_FLOOR
-                elseif z < 0 then
-                    hTxt = "--- Floor +" .. math.abs(z) .. " ---"
-                    hClr = COLORS.FLOOR
-                else
-                    hTxt = "--- Floor -" .. z .. " ---"
-                    hClr = COLORS.FLOOR
-                end
-                mHFound[z] = true
-                if not activeMonsterHeaderHuds[z] then
-                    activeMonsterHeaderHuds[z] = HUD.new(LIST_MARGIN_X, yOff, hTxt, true)
-                    activeMonsterHeaderHuds[z]:setHorizontalAlignment(Enums.HorizontalAlign.Right)
-                else
-                    activeMonsterHeaderHuds[z]:setText(hTxt)
-                    activeMonsterHeaderHuds[z]:setPos(LIST_MARGIN_X, yOff)
-                end
-                activeMonsterHeaderHuds[z]:setColor(hClr.r, hClr.g, hClr.b)
-                yOff = yOff + LIST_SPACING_Y
-                local sortedMonsterNames = {}
-                for name, _ in pairs(mL) do
-                    table.insert(sortedMonsterNames, name)
-                end
-                table.sort(sortedMonsterNames)
-                for _, name in ipairs(sortedMonsterNames) do
-                    local count = mL[name]
-                    local dTxt = name .. ": " .. count
-                    local tX = LIST_MARGIN_X
-                    local clr = COLORS.NORMAL
-                    local key = name .. "_" .. z
-                    if not activeMonsterHuds[key] then
-                        activeMonsterHuds[key] = {}
-                    end
-                    local huds = activeMonsterHuds[key]
-                    mFound_list[key] = true
-                    if not huds.textHud then
-                        huds.textHud = HUD.new(tX, yOff, dTxt, true)
-                        huds.textHud:setHorizontalAlignment(Enums.HorizontalAlign.Right)
+
+        -- Render Monsters Section if not empty
+        if totalMonstersDisplayed > 0 then
+            local monsterHeaderTxt = "CREATURES: " .. totalMonstersDisplayed
+            if not activeMonsterHeaderHuds["monsters_header"] then
+                activeMonsterHeaderHuds["monsters_header"] = HUD.new(LIST_MARGIN_X, yOff, monsterHeaderTxt, true)
+                activeMonsterHeaderHuds["monsters_header"]:setHorizontalAlignment(Enums.HorizontalAlign.Right)
+            else
+                activeMonsterHeaderHuds["monsters_header"]:setText(monsterHeaderTxt)
+                activeMonsterHeaderHuds["monsters_header"]:setPos(LIST_MARGIN_X, yOff)
+            end
+            activeMonsterHeaderHuds["monsters_header"]:setColor(COLORS.HEADER.r, COLORS.HEADER.g, COLORS.HEADER.b)
+            yOff = yOff + LIST_SPACING_Y
+
+            local mHFound = {}
+            for _, z in ipairs(mFRend) do
+                local mL = mByFloor[z]
+                if mL and next(mL) then
+                    local hTxt, hClr
+                    if z == 0 then
+                        hTxt = "--- Same Floor ---"
+                        hClr = COLORS.SAME_FLOOR
+                    elseif z < 0 then
+                        hTxt = "--- Floor +" .. math.abs(z) .. " ---"
+                        hClr = COLORS.FLOOR
                     else
-                        huds.textHud:setText(dTxt)
-                        huds.textHud:setPos(tX, yOff)
+                        hTxt = "--- Floor -" .. z .. " ---"
+                        hClr = COLORS.FLOOR
                     end
-                    huds.textHud:setColor(clr.r, clr.g, clr.b)
+                    mHFound[z] = true
+                    if not activeMonsterHeaderHuds[z] then
+                        activeMonsterHeaderHuds[z] = HUD.new(LIST_MARGIN_X, yOff, hTxt, true)
+                        activeMonsterHeaderHuds[z]:setHorizontalAlignment(Enums.HorizontalAlign.Right)
+                    else
+                        activeMonsterHeaderHuds[z]:setText(hTxt)
+                        activeMonsterHeaderHuds[z]:setPos(LIST_MARGIN_X, yOff)
+                    end
+                    activeMonsterHeaderHuds[z]:setColor(hClr.r, hClr.g, hClr.b)
                     yOff = yOff + LIST_SPACING_Y
+                    local sortedMonsterNames = {}
+                    for name, _ in pairs(mL) do
+                        table.insert(sortedMonsterNames, name)
+                    end
+                    table.sort(sortedMonsterNames)
+                    for _, name in ipairs(sortedMonsterNames) do
+                        local count = mL[name]
+                        local dTxt = name .. ": " .. count
+                        local tX = LIST_MARGIN_X
+                        local clr = COLORS.NORMAL
+                        local key = name .. "_" .. z
+                        if not activeMonsterHuds[key] then
+                            activeMonsterHuds[key] = {}
+                        end
+                        local huds = activeMonsterHuds[key]
+                        mFound_list[key] = true
+                        if not huds.textHud then
+                            huds.textHud = HUD.new(tX, yOff, dTxt, true)
+                            huds.textHud:setHorizontalAlignment(Enums.HorizontalAlign.Right)
+                        else
+                            huds.textHud:setText(dTxt)
+                            huds.textHud:setPos(tX, yOff)
+                        end
+                        huds.textHud:setColor(clr.r, clr.g, clr.b)
+                        yOff = yOff + LIST_SPACING_Y
+                    end
+                    yOff = yOff + (LIST_SPACING_Y / 2)
                 end
-                yOff = yOff + (LIST_SPACING_Y / 2)
             end
-        end
-        for key, huds in pairs(activeMonsterHuds) do
-            if not mFound_list[key] then
+            -- Cleanup for removed monsters or floor headers
+            for key, huds in pairs(activeMonsterHuds) do
+                if not mFound_list[key] then
+                    huds.textHud:destroy()
+                    activeMonsterHuds[key] = nil
+                end
+            end
+            for z, hud in pairs(activeMonsterHeaderHuds) do
+                if z ~= "monsters_header" and not mHFound[z] then
+                    hud:destroy()
+                    activeMonsterHeaderHuds[z] = nil
+                end
+            end
+        else -- If totalMonstersDisplayed is 0, destroy all monster HUDs
+            for name, huds in pairs(activeMonsterHuds) do
                 huds.textHud:destroy()
-                activeMonsterHuds[key] = nil
+                activeMonsterHuds[name] = nil
             end
-        end
-        for z, hud in pairs(activeMonsterHeaderHuds) do
-            if z ~= "monsters_header" and not mHFound[z] then
-                hud:destroy()
+            for z, h in pairs(activeMonsterHeaderHuds) do
+                h:destroy()
                 activeMonsterHeaderHuds[z] = nil
             end
         end
+    else -- If isListEnabled or showMonsters is false, destroy all monster HUDs
+        for name, huds in pairs(activeMonsterHuds) do
+            huds.textHud:destroy()
+            activeMonsterHuds[name] = nil
+        end
+        for z, h in pairs(activeMonsterHeaderHuds) do
+            h:destroy()
+            activeMonsterHeaderHuds[z] = nil
+        end
     end
-    if showNpcs and myPos_list then
+
+    -- NPCs Section
+    if isListEnabled and showNpcs and myPos_list then
         local nFound_list, nByFloor = {}, {}
         local totalNpcsDisplayed = 0
         if allCreaturesOnScreen then
@@ -541,82 +580,108 @@ local function updatePlayerDisplays()
             table.insert(nFRend, z)
         end
         table.sort(nFRend)
-        local npcHeaderTxt = "NPCs: " .. totalNpcsDisplayed
-        if not activeNpcHeaderHuds["npcs_header"] then
-            activeNpcHeaderHuds["npcs_header"] = HUD.new(LIST_MARGIN_X, yOff, npcHeaderTxt, true)
-            activeNpcHeaderHuds["npcs_header"]:setHorizontalAlignment(Enums.HorizontalAlign.Right)
-        else
-            activeNpcHeaderHuds["npcs_header"]:setText(npcHeaderTxt)
-            activeNpcHeaderHuds["npcs_header"]:setPos(LIST_MARGIN_X, yOff)
-        end
-        activeNpcHeaderHuds["npcs_header"]:setColor(COLORS.HEADER.r, COLORS.HEADER.g, COLORS.HEADER.b)
-        yOff = yOff + LIST_SPACING_Y
-        local nHFound = {}
-        for _, z in ipairs(nFRend) do
-            local nL = nByFloor[z]
-            if nL and next(nL) then
-                local hTxt, hClr
-                if z == 0 then
-                    hTxt = "--- Same Floor ---"
-                    hClr = COLORS.SAME_FLOOR
-                elseif z < 0 then
-                    hTxt = "--- Floor +" .. math.abs(z) .. " ---"
-                    hClr = COLORS.FLOOR
-                else
-                    hTxt = "--- Floor -" .. z .. " ---"
-                    hClr = COLORS.FLOOR
-                end
-                nHFound[z] = true
-                if not activeNpcHeaderHuds[z] then
-                    activeNpcHeaderHuds[z] = HUD.new(LIST_MARGIN_X, yOff, hTxt, true)
-                    activeNpcHeaderHuds[z]:setHorizontalAlignment(Enums.HorizontalAlign.Right)
-                else
-                    activeNpcHeaderHuds[z]:setText(hTxt)
-                    activeNpcHeaderHuds[z]:setPos(LIST_MARGIN_X, yOff)
-                end
-                activeNpcHeaderHuds[z]:setColor(hClr.r, hClr.g, hClr.b)
-                yOff = yOff + LIST_SPACING_Y
-                local sortedNpcNames = {}
-                for name, _ in pairs(nL) do
-                    table.insert(sortedNpcNames, name)
-                end
-                table.sort(sortedNpcNames)
-                for _, name in ipairs(sortedNpcNames) do
-                    local dTxt = name
-                    local tX = LIST_MARGIN_X
-                    local clr = COLORS.NORMAL
-                    local key = name .. "_" .. z
-                    if not activeNpcHuds[key] then
-                        activeNpcHuds[key] = {}
-                    end
-                    local huds = activeNpcHuds[key]
-                    nFound_list[key] = true
-                    if not huds.textHud then
-                        huds.textHud = HUD.new(tX, yOff, dTxt, true)
-                        huds.textHud:setHorizontalAlignment(Enums.HorizontalAlign.Right)
+
+        -- Render NPCs Section if not empty
+        if totalNpcsDisplayed > 0 then
+            local npcHeaderTxt = "NPCs: " .. totalNpcsDisplayed
+            if not activeNpcHeaderHuds["npcs_header"] then
+                activeNpcHeaderHuds["npcs_header"] = HUD.new(LIST_MARGIN_X, yOff, npcHeaderTxt, true)
+                activeNpcHeaderHuds["npcs_header"]:setHorizontalAlignment(Enums.HorizontalAlign.Right)
+            else
+                activeNpcHeaderHuds["npcs_header"]:setText(npcHeaderTxt)
+                activeNpcHeaderHuds["npcs_header"]:setPos(LIST_MARGIN_X, yOff)
+            end
+            activeNpcHeaderHuds["npcs_header"]:setColor(COLORS.HEADER.r, COLORS.HEADER.g, COLORS.HEADER.b)
+            yOff = yOff + LIST_SPACING_Y
+
+            local nHFound = {}
+            for _, z in ipairs(nFRend) do
+                local nL = nByFloor[z]
+                if nL and next(nL) then
+                    local hTxt, hClr
+                    if z == 0 then
+                        hTxt = "--- Same Floor ---"
+                        hClr = COLORS.SAME_FLOOR
+                    elseif z < 0 then
+                        hTxt = "--- Floor +" .. math.abs(z) .. " ---"
+                        hClr = COLORS.FLOOR
                     else
-                        huds.textHud:setText(dTxt)
-                        huds.textHud:setPos(tX, yOff)
+                        hTxt = "--- Floor -" .. z .. " ---"
+                        hClr = COLORS.FLOOR
                     end
-                    huds.textHud:setColor(clr.r, clr.g, clr.b)
+                    nHFound[z] = true
+                    if not activeNpcHeaderHuds[z] then
+                        activeNpcHeaderHuds[z] = HUD.new(LIST_MARGIN_X, yOff, hTxt, true)
+                        activeNpcHeaderHuds[z]:setHorizontalAlignment(Enums.HorizontalAlign.Right)
+                    else
+                        activeNpcHeaderHuds[z]:setText(hTxt)
+                        activeNpcHeaderHuds[z]:setPos(LIST_MARGIN_X, yOff)
+                    end
+                    activeNpcHeaderHuds[z]:setColor(hClr.r, hClr.g, hClr.b)
                     yOff = yOff + LIST_SPACING_Y
+                    local sortedNpcNames = {}
+                    for name, _ in pairs(nL) do
+                        table.insert(sortedNpcNames, name)
+                    end
+                    table.sort(sortedNpcNames)
+                    for _, name in ipairs(sortedNpcNames) do
+                        local dTxt = name
+                        local tX = LIST_MARGIN_X
+                        local clr = COLORS.NORMAL
+                        local key = name .. "_" .. z
+                        if not activeNpcHuds[key] then
+                            activeNpcHuds[key] = {}
+                        end
+                        local huds = activeNpcHuds[key]
+                        nFound_list[key] = true
+                        if not huds.textHud then
+                            huds.textHud = HUD.new(tX, yOff, dTxt, true)
+                            huds.textHud:setHorizontalAlignment(Enums.HorizontalAlign.Right)
+                        else
+                            huds.textHud:setText(dTxt)
+                            huds.textHud:setPos(tX, yOff)
+                        end
+                        huds.textHud:setColor(clr.r, clr.g, clr.b)
+                        yOff = yOff + LIST_SPACING_Y
+                    end
+                    yOff = yOff + (LIST_SPACING_Y / 2)
                 end
-                yOff = yOff + (LIST_SPACING_Y / 2)
             end
-        end
-        for key, huds in pairs(activeNpcHuds) do
-            if not nFound_list[key] then
+            -- Cleanup for removed NPCs or floor headers
+            for key, huds in pairs(activeNpcHuds) do
+                if not nFound_list[key] then
+                    huds.textHud:destroy()
+                    activeNpcHuds[key] = nil
+                end
+            end
+            for z, hud in pairs(activeNpcHeaderHuds) do
+                if z ~= "npcs_header" and not nHFound[z] then
+                    hud:destroy()
+                    activeNpcHeaderHuds[z] = nil
+                end
+            end
+        else -- If totalNpcsDisplayed is 0, destroy all NPC HUDs
+            for name, huds in pairs(activeNpcHuds) do
                 huds.textHud:destroy()
-                activeNpcHuds[key] = nil
+                activeNpcHuds[name] = nil
             end
-        end
-        for z, hud in pairs(activeNpcHeaderHuds) do
-            if z ~= "npcs_header" and not nHFound[z] then
-                hud:destroy()
+            for z, h in pairs(activeNpcHeaderHuds) do
+                h:destroy()
                 activeNpcHeaderHuds[z] = nil
             end
         end
+    else -- If isListEnabled or showNpcs is false, destroy all NPC HUDs
+        for name, huds in pairs(activeNpcHuds) do
+            huds.textHud:destroy()
+            activeNpcHuds[name] = nil
+        end
+        for z, h in pairs(activeNpcHeaderHuds) do
+            h:destroy()
+            activeNpcHeaderHuds[z] = nil
+        end
     end
+
+    -- Tracker Section
     local playersFoundThisTick_tracker = {}
     if isTrackerEnabled then
         local gameWindow = Client.getGameWindowDimensions()
