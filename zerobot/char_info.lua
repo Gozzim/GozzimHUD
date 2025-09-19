@@ -6,7 +6,6 @@ local LIST_START_Y = 20
 local TRACKER_TEXT_Y_OFFSET = 0
 local SCAN_INTERVAL_MS = 25
 local LIST_SPACING_Y = 20
-local ICON_TEXT_SPACING = 35
 local SKULL_ICON_SCALE = 0.5
 local COLORS = {
     RED_SKULL = { r = 255, g = 50, b = 50 },
@@ -52,11 +51,86 @@ local showMonsters = true
 local showNpcs = false
 local settingsIcon = nil
 local settingsModal = nil
+local lastWorldName = nil
+
+local function getCharacterInfoPath(worldNameOverride)
+    local scriptsDir = Engine.getScriptsDirectory()
+    local worldName = worldNameOverride or Client.getWorldName()
+
+    if not scriptsDir or not worldName then
+        return nil
+    end
+
+    -- Trim whitespace from world name
+    worldName = worldName:gsub("^%s*(.-)%s*$", "%1")
+
+    return string.format("%s/charInfo_%s.json", scriptsDir, worldName)
+end
+
+local function saveCharacterInfo(worldNameToSave)
+    if not worldNameToSave then return end
+
+    local path = getCharacterInfoPath(worldNameToSave)
+    if not path then
+        print("Could not save character info: Missing path components for world: " .. worldNameToSave)
+        return
+    end
+
+    local success, jsonData = pcall(JSON.encode, knownPlayerLevels)
+    if not success then
+        print("Error encoding character info to JSON: " .. tostring(jsonData))
+        return
+    end
+
+    local file, err = io.open(path, "w")
+    if not file then
+        print("Error opening file to save character info: " .. tostring(err))
+        return
+    end
+
+    file:write(jsonData)
+    file:close()
+    print(">> Character info saved for " .. worldNameToSave)
+end
+
+local function loadCharacterInfo()
+    local path = getCharacterInfoPath()
+    if not path then
+        print("Could not load character info: Not connected or world name is unavailable.")
+        knownPlayerLevels = {}
+        return
+    end
+
+    local file = io.open(path, "r")
+    if not file then
+        knownPlayerLevels = {}
+        print(">> No existing charInfo file found for " .. (Client.getWorldName() or "current world"))
+        return
+    end
+
+    local content = file:read("*a")
+    file:close()
+
+    if content and #content > 0 then
+        local success, data = pcall(JSON.decode, content)
+        if success and type(data) == "table" then
+            knownPlayerLevels = data
+            print(">> Character info loaded for " .. Client.getWorldName())
+        else
+            print("Error decoding character info from JSON: " .. tostring(data))
+            knownPlayerLevels = {}
+        end
+    else
+        knownPlayerLevels = {}
+    end
+end
+
 local function onPlayerTalk(name, level, mode, text)
     if level > 0 then
         knownPlayerLevels[name:lower()] = level
     end
 end
+
 local function onServerLogMessage(messageData)
     if messageData.messageType == Enums.MessageTypes.MESSAGE_INFO_DESCR then
         local name, level = messageData.text:match("You see ([^%(]+) %(Level (%d+)")
@@ -66,6 +140,7 @@ local function onServerLogMessage(messageData)
         end
     end
 end
+
 local openSettingsModal
 local function onModalButtonClick(buttonIndex)
     if buttonIndex == 0 then
@@ -105,6 +180,9 @@ local function onModalButtonClick(buttonIndex)
     elseif buttonIndex == 14 then
         showNpcs = not showNpcs
     elseif buttonIndex == 15 then
+        if lastWorldName then
+            saveCharacterInfo(lastWorldName)
+        end
         if settingsModal then
             settingsModal:destroy()
         end
@@ -113,6 +191,7 @@ local function onModalButtonClick(buttonIndex)
     end
     openSettingsModal()
 end
+
 openSettingsModal = function()
     if settingsModal then
         settingsModal:destroy()
@@ -148,6 +227,7 @@ openSettingsModal = function()
     settingsModal:addButton("Save & Close")
     settingsModal:setCallback(onModalButtonClick)
 end
+
 local function cleanupSectionHuds(hudsTable, headerHudsTable)
     for k, huds in pairs(hudsTable) do
         if huds.skullHud then huds.skullHud:destroy() end
@@ -159,7 +239,24 @@ local function cleanupSectionHuds(hudsTable, headerHudsTable)
         headerHudsTable[k] = nil
     end
 end
+
 local function updatePlayerDisplays()
+    local isConnected = Client.isConnected()
+    local currentWorld = isConnected and Client.getWorldName() or nil
+
+    if lastWorldName and (not isConnected or (currentWorld and currentWorld ~= lastWorldName)) then
+        print("Connection state or world changed, saving data for " .. lastWorldName)
+        saveCharacterInfo(lastWorldName)
+        knownPlayerLevels = {}
+    end
+
+    if isConnected and (not lastWorldName or (currentWorld and currentWorld ~= lastWorldName)) then
+        print("New connection or world detected. Loading data for " .. currentWorld)
+        loadCharacterInfo()
+    end
+
+    lastWorldName = currentWorld
+
     local myId = Player.getId()
     local myPlayer_list = Creature(myId)
     local myPos_list = myPlayer_list and myPlayer_list:getPosition()
@@ -210,7 +307,6 @@ local function updatePlayerDisplays()
     local yOff = LIST_START_Y
 
     -- Players Section
-    local playersRendered = false
     if isListEnabled and showPlayers and myPos_list then
         local pFound_list, pByFloor = {}, {}
         local totalPlayersDisplayed = 0
@@ -272,7 +368,7 @@ local function updatePlayerDisplays()
                     if a.vocationId ~= b.vocationId then
                         return a.vocationId < b.vocationId
                     end
-                    -- Tie-breaker for vocation: level (desc), then alphabet
+                    -- Tie-breaker for vocation: level then alphabet
                     if a.level and b.level then
                         if a.level ~= b.level then
                             return a.level > b.level
@@ -284,7 +380,7 @@ local function updatePlayerDisplays()
                     end
                     return a.name:lower() < b.name:lower()
                 elseif subSortOrder == "level" then
-                    -- Primary sort by level (desc)
+                    -- Primary sort by level
                     if a.level and b.level then
                         if a.level ~= b.level then
                             return a.level > b.level
@@ -294,7 +390,7 @@ local function updatePlayerDisplays()
                     elseif b.level then
                         return false
                     end
-                    -- Tie-breaker for level: vocation, then alphabet
+                    -- Tie-breaker for level: vocation then alphabet
                     if a.vocationId ~= b.vocationId then
                         return a.vocationId < b.vocationId
                     end
@@ -304,7 +400,7 @@ local function updatePlayerDisplays()
                     if a.name:lower() ~= b.name:lower() then
                         return a.name:lower() < b.name:lower()
                     end
-                    -- Tie-breaker for alphabet: vocation, then level (desc)
+                    -- Tie-breaker for alphabet: vocation then level
                     if a.vocationId ~= b.vocationId then
                         return a.vocationId < b.vocationId
                     end
@@ -317,9 +413,9 @@ local function updatePlayerDisplays()
                     elseif b.level then
                         return false
                     end
-                    return false -- Should not be reached if all fields are equal
+                    return false
                 end
-                -- Fallback (should not be reached if subSortOrder is always one of the three)
+                -- Fallback
                 return a.name:lower() < b.name:lower()
             end)
         end
@@ -332,7 +428,6 @@ local function updatePlayerDisplays()
 
         -- Render Players Section if not empty
         if totalPlayersDisplayed > 0 then
-            playersRendered = true
             local hFound = {}
             local playerHeaderTxt = "PLAYERS: " .. totalPlayersDisplayed
             if not activeHeaderHuds["players_header"] then
@@ -443,7 +538,6 @@ local function updatePlayerDisplays()
     end
 
     -- Monsters Section
-    local monstersRendered = false
     if isListEnabled and showMonsters and myPos_list then
         local mFound_list, mByFloor = {}, {}
         local totalMonstersDisplayed = 0
@@ -477,7 +571,6 @@ local function updatePlayerDisplays()
 
         -- Render Monsters Section if not empty
         if totalMonstersDisplayed > 0 then
-            monstersRendered = true
             local monsterHeaderTxt = "CREATURES: " .. totalMonstersDisplayed
             if not activeMonsterHeaderHuds["monsters_header"] then
                 activeMonsterHeaderHuds["monsters_header"] = HUD.new(LIST_MARGIN_X, yOff, monsterHeaderTxt, true)
@@ -564,7 +657,6 @@ local function updatePlayerDisplays()
     end
 
     -- NPCs Section
-    local npcsRendered = false
     if isListEnabled and showNpcs and myPos_list then
         local nFound_list, nByFloor = {}, {}
         local totalNpcsDisplayed = 0
@@ -600,7 +692,6 @@ local function updatePlayerDisplays()
 
         -- Render NPCs Section if not empty
         if totalNpcsDisplayed > 0 then
-            npcsRendered = true
             local npcHeaderTxt = "NPCs: " .. totalNpcsDisplayed
             if not activeNpcHeaderHuds["npcs_header"] then
                 activeNpcHeaderHuds["npcs_header"] = HUD.new(LIST_MARGIN_X, yOff, npcHeaderTxt, true)
@@ -747,4 +838,10 @@ end
 Game.registerEvent(Game.Events.TALK, onPlayerTalk)
 Game.registerEvent(Game.Events.TEXT_MESSAGE, onServerLogMessage)
 Timer.new("AdvancedPlayerDisplayTimer", updatePlayerDisplays, SCAN_INTERVAL_MS, true)
+
+if Client.isConnected() then
+    lastWorldName = Client.getWorldName()
+    loadCharacterInfo()
+end
+
 print(">> Advanced Player Display loaded.")
