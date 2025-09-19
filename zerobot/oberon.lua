@@ -4,8 +4,7 @@
 -- The parameters (authorName, text, etc.) are passed by the event system as seen in game.lua.
 local function oberonTalkHandler(authorName, authorLevel, type, x, y, z, text, channelId)
 
-    --if authorName == 'Grand Master Oberon' then
-
+    --if authorName:lower() == "grand master oberon" then
     if text:find('The world will suffer for its idle laziness!') then
         Game.talk('Are you ever going to fight or do you prefer talking!', Enums.TalkTypes.TALKTYPE_SAY)
 
