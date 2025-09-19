@@ -228,6 +228,16 @@ openSettingsModal = function()
     settingsModal:setCallback(onModalButtonClick)
 end
 
+local function cleanupAllHuds()
+    cleanupSectionHuds(activePlayerHuds, activeHeaderHuds)
+    cleanupSectionHuds(activeMonsterHuds, activeMonsterHeaderHuds)
+    cleanupSectionHuds(activeNpcHuds, activeNpcHeaderHuds)
+    for cid, hud in pairs(activeTrackerHuds) do
+        hud:destroy()
+        activeTrackerHuds[cid] = nil
+    end
+end
+
 local function cleanupSectionHuds(hudsTable, headerHudsTable)
     for k, huds in pairs(hudsTable) do
         if huds.skullHud then huds.skullHud:destroy() end
@@ -244,18 +254,27 @@ local function updatePlayerDisplays()
     local isConnected = Client.isConnected()
     local currentWorld = isConnected and Client.getWorldName() or nil
 
-    if lastWorldName and (not isConnected or (currentWorld and currentWorld ~= lastWorldName)) then
-        print("Connection state or world changed, saving data for " .. lastWorldName)
+    -- Handle state changes (login, logout, world switch)
+    if currentWorld and currentWorld ~= lastWorldName then
+        if lastWorldName then
+            print("World changed. Saving data for " .. lastWorldName)
+            saveCharacterInfo(lastWorldName)
+        end
+        print("New world detected. Loading data for " .. currentWorld)
+        loadCharacterInfo()
+        lastWorldName = currentWorld
+    elseif not currentWorld and lastWorldName then
+        print("Client disconnected. Saving data for " .. lastWorldName)
         saveCharacterInfo(lastWorldName)
+        lastWorldName = nil
         knownPlayerLevels = {}
     end
 
-    if isConnected and (not lastWorldName or (currentWorld and currentWorld ~= lastWorldName)) then
-        print("New connection or world detected. Loading data for " .. currentWorld)
-        loadCharacterInfo()
+    -- If we are not connected, clean up all HUDs and stop.
+    if not isConnected or not currentWorld then
+        cleanupAllHuds()
+        return
     end
-
-    lastWorldName = currentWorld
 
     local myId = Player.getId()
     local myPlayer_list = Creature(myId)
@@ -837,9 +856,10 @@ end
 
 Game.registerEvent(Game.Events.TALK, onPlayerTalk)
 Game.registerEvent(Game.Events.TEXT_MESSAGE, onServerLogMessage)
-Timer.new("AdvancedPlayerDisplayTimer", updatePlayerDisplays, SCAN_INTERVAL_MS, true)
+Timer.new("PlayerInfoTimer", updatePlayerDisplays, SCAN_INTERVAL_MS, true)
 
-if Client.isConnected() then
+-- Initial Load
+if Client.isConnected() and Client.getWorldName() then
     lastWorldName = Client.getWorldName()
     loadCharacterInfo()
 end
