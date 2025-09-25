@@ -228,6 +228,18 @@ openSettingsModal = function()
     settingsModal:setCallback(onModalButtonClick)
 end
 
+local function cleanupAllHuds()
+    cleanupSectionHuds(activePlayerHuds, activeHeaderHuds)
+    cleanupSectionHuds(activeMonsterHuds, activeMonsterHeaderHuds)
+    cleanupSectionHuds(activeNpcHuds, activeNpcHeaderHuds)
+    for cid, hud in pairs(activeTrackerHuds) do
+        if hud then
+            hud:destroy()
+            activeTrackerHuds[cid] = nil
+        end
+    end
+end
+
 local function cleanupSectionHuds(hudsTable, headerHudsTable)
     for k, huds in pairs(hudsTable) do
         if huds.skullHud then huds.skullHud:destroy() end
@@ -235,18 +247,10 @@ local function cleanupSectionHuds(hudsTable, headerHudsTable)
         hudsTable[k] = nil
     end
     for k, h in pairs(headerHudsTable) do
-        h:destroy()
-        headerHudsTable[k] = nil
-    end
-end
-
-local function cleanupAllHuds()
-    cleanupSectionHuds(activePlayerHuds, activeHeaderHuds)
-    cleanupSectionHuds(activeMonsterHuds, activeMonsterHeaderHuds)
-    cleanupSectionHuds(activeNpcHuds, activeNpcHeaderHuds)
-    for cid, hud in pairs(activeTrackerHuds) do
-        hud:destroy()
-        activeTrackerHuds[cid] = nil
+        if h then
+            h:destroy()
+            headerHudsTable[k] = nil
+        end
     end
 end
 
