@@ -229,7 +229,6 @@ openSettingsModal = function()
 end
 
 local function cleanupAllHuds()
-    if not cleanupSectionHuds then return end
     cleanupSectionHuds(activePlayerHuds, activeHeaderHuds)
     cleanupSectionHuds(activeMonsterHuds, activeMonsterHeaderHuds)
     cleanupSectionHuds(activeNpcHuds, activeNpcHeaderHuds)
