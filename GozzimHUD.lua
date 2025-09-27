@@ -1,9 +1,8 @@
 -- GozzimHUD Main Controller
 -- Loads and manages all individual GozzimScripts.
 
--- #################### CONFIGURATION ####################
--- The folder where the individual script files are located.
 local SCRIPTS_FOLDER = "GozzimScripts/"
+local STORAGE_FOLDER = "GozzimScripts/Storage/"
 
 -- Item ID for the main settings icon.
 local SETTINGS_ICON_ID = 9153
@@ -32,7 +31,6 @@ local allScripts = {
     { name = "SSA/Might", file = "auto_ssa_might.lua", defaultState = true },
     { name = "Effects", file = "toggle_effects.lua", defaultState = true },
 }
--- ######################################################
 
 -- Runtime state variables
 local settingsIcon = nil
@@ -45,8 +43,60 @@ for i, script in ipairs(allScripts) do
     script.isLoaded = false
 end
 
+-- Forward declarations for script loading functions
+local loadScript, unloadScript
+
+local function getStorageFileName(scriptName)
+    local worldName = Client.getWorldName()
+    local charName = Player.getName()
+
+    -- Trim and replace spaces
+    worldName = worldName:gsub("^%s*(.-)%s*$", "%1"):gsub("%s", "_")
+    charName = charName:gsub("^%s*(.-)%s*$", "%1"):gsub("%s", "_")
+
+    return string.format("%s_%s_%s.json", worldName, charName, scriptName)
+end
+
+local function saveScriptStates()
+    local states = {}
+    for _, script in ipairs(allScripts) do
+        states[script.name] = script.isLoaded
+    end
+
+    local fileName = getStorageFileName("GozzimHUD")
+    local filePath = Engine.getScriptsDirectory() .. "/" .. STORAGE_FOLDER .. fileName
+    local file = io.open(filePath, "w")
+    if file then
+        file:write(JSON.encode(states))
+        file:close()
+    end
+end
+
+local function loadScriptStates()
+    local fileName = getStorageFileName("GozzimHUD")
+    local filePath = Engine.getScriptsDirectory() .. "/" .. STORAGE_FOLDER .. fileName
+    local file = io.open(filePath, "r")
+    if file then
+        local content = file:read("*a")
+        file:close()
+        local states = JSON.decode(content)
+        if states then
+            for i, script in ipairs(allScripts) do
+                if states[script.name] and not script.isLoaded then
+                    loadScript(i)
+                elseif not states[script.name] and script.isLoaded then
+                    unloadScript(i)
+                end
+            end
+        end
+        return true -- States loaded
+    end
+    return false -- No states file
+end
+
+
 -- Tries to load a script module by its file name.
-local function loadScript(scriptIndex)
+loadScript = function(scriptIndex)
     local script = allScripts[scriptIndex]
     if not script or script.isLoaded then
         return
@@ -73,7 +123,7 @@ local function loadScript(scriptIndex)
 end
 
 -- Unloads a script module.
-local function unloadScript(scriptIndex)
+unloadScript = function(scriptIndex)
     local script = allScripts[scriptIndex]
     if not script or not script.isLoaded or not script.module then
         return
@@ -95,6 +145,7 @@ local openSettingsModal
 local function onModalButtonClick(buttonIndex)
     if buttonIndex == #allScripts then
         if settingsModal then
+            saveScriptStates()
             settingsModal:destroy()
             settingsModal = nil
         end
@@ -152,22 +203,24 @@ local function loadController()
         print("!! ERROR loading module char_info.lua: " .. tostring(err))
     end
 
-    -- Determine vocation for default script loading
-    local player = Creature(Player.getId())
-    local vocation = player and player:getVocation() or Enums.Vocations.NONE
-    local isKnight = (vocation == Enums.Vocations.KNIGHT or vocation == Enums.Vocations.ELITE_KNIGHT)
+    if not loadScriptStates() then
+        -- Determine vocation for default script loading
+        local player = Creature(Player.getId())
+        local vocation = player and player:getVocation() or Enums.Vocations.NONE
+        local isKnight = (vocation == Enums.Vocations.KNIGHT or vocation == Enums.Vocations.ELITE_KNIGHT)
 
-    for i, script in ipairs(allScripts) do
-        local shouldLoad = script.defaultState
+        for i, script in ipairs(allScripts) do
+            local shouldLoad = script.defaultState
 
-        if script.name == "Rage" then
-            shouldLoad = isKnight
-        elseif script.name == "Autoshoot" then
-            shouldLoad = not isKnight
-        end
+            if script.name == "Rage" then
+                shouldLoad = isKnight
+            elseif script.name == "Autoshoot" then
+                shouldLoad = not isKnight
+            end
 
-        if shouldLoad then
-            loadScript(i)
+            if shouldLoad then
+                loadScript(i)
+            end
         end
     end
 

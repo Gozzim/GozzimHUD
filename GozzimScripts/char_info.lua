@@ -54,6 +54,82 @@ local settingsIcon = nil
 local settingsModal = nil
 local lastWorldName = nil
 
+-- Settings Storage
+local function getSettingsStorageFileName()
+    local worldName = Client.getWorldName()
+    local charName = Player.getName()
+    if not worldName or not charName then return nil end
+
+    -- Trim and replace spaces
+    worldName = worldName:gsub("^%s*(.-)%s*$", "%1"):gsub("%s", "_")
+    charName = charName:gsub("^%s*(.-)%s*$", "%1"):gsub("%s", "_")
+
+    return string.format("%s_%s_char_info.json", worldName, charName)
+end
+
+local function saveSettings()
+    local fileName = getSettingsStorageFileName()
+    if not fileName then return end
+
+    local settings = {
+        isListEnabled = isListEnabled,
+        isTrackerEnabled = isTrackerEnabled,
+        maxFloorsAbove = maxFloorsAbove,
+        maxFloorsBelow = maxFloorsBelow,
+        showPartyMembers = showPartyMembers,
+        showGuildMates = showGuildMates,
+        subSortOrder = subSortOrder,
+        isCategorySortEnabled = isCategorySortEnabled,
+        isColorCodingEnabled = isColorCodingEnabled,
+        isAutoLookEnabled = isAutoLookEnabled,
+        showPlayers = showPlayers,
+        showMonsters = showMonsters,
+        showNpcs = showNpcs
+    }
+
+    local filePath = Engine.getScriptsDirectory() .. "/GozzimScripts/Storage/" .. fileName
+    local file = io.open(filePath, "w")
+    if file then
+        file:write(JSON.encode(settings))
+        file:close()
+    end
+end
+
+local function loadSettings()
+    local fileName = getSettingsStorageFileName()
+    if not fileName then return false end
+
+    local filePath = Engine.getScriptsDirectory() .. "/GozzimScripts/Storage/" .. fileName
+    local file = io.open(filePath, "r")
+    if file then
+        local content = file:read("*a")
+        file:close()
+        if not content or content == "" then return false end
+        local success, settings = pcall(JSON.decode, content)
+        if success and type(settings) == "table" then
+            isListEnabled = settings.isListEnabled ~= false
+            isTrackerEnabled = settings.isTrackerEnabled ~= false
+            maxFloorsAbove = settings.maxFloorsAbove or maxFloorsAbove
+            maxFloorsBelow = settings.maxFloorsBelow or maxFloorsBelow
+            showPartyMembers = settings.showPartyMembers ~= false
+            showGuildMates = settings.showGuildMates ~= false
+            subSortOrder = settings.subSortOrder or subSortOrder
+            isCategorySortEnabled = settings.isCategorySortEnabled ~= false
+            isColorCodingEnabled = settings.isColorCodingEnabled ~= false
+            isAutoLookEnabled = settings.isAutoLookEnabled == true
+            showPlayers = settings.showPlayers ~= false
+            showMonsters = settings.showMonsters ~= false
+            showNpcs = settings.showNpcs == true
+            print(">> Char Info settings loaded.")
+            return true -- Settings loaded
+        else
+            print(">> Error loading Char Info settings: " .. tostring(settings))
+        end
+    end
+    return false -- No settings file or error
+end
+
+-- Character Data Storage (existing, but fixed)
 local function getCharacterInfoPath(worldNameOverride)
     local scriptsDir = Engine.getScriptsDirectory()
     local worldName = worldNameOverride or Client.getWorldName()
@@ -62,8 +138,8 @@ local function getCharacterInfoPath(worldNameOverride)
         return nil
     end
 
-    -- Trim whitespace from world name
-    worldName = worldName:gsub("^%s*(.-)%s*$", "%1")
+    -- Trim and replace spaces
+    worldName = worldName:gsub("^%s*(.-)%s*$", "%1"):gsub("%s", "_")
 
     return string.format("%s/GozzimScripts/Storage/charInfo_%s.json", scriptsDir, worldName)
 end
@@ -181,6 +257,7 @@ local function onModalButtonClick(buttonIndex)
     elseif buttonIndex == 14 then
         showNpcs = not showNpcs
     elseif buttonIndex == 15 then
+        saveSettings()
         if lastWorldName then
             saveCharacterInfo(lastWorldName)
         end
@@ -851,6 +928,8 @@ local function updatePlayerDisplays()
 end
 
 local function load()
+    loadSettings()
+
     settingsIcon = HUD.new(ICON_POSITION_X, ICON_POSITION_Y, ICON_ITEM_ID, true)
     if settingsIcon then
         settingsIcon:setCallback(openSettingsModal)
@@ -871,6 +950,7 @@ end
 
 local function unload()
     -- Save data before quitting
+    saveSettings()
     if lastWorldName then
         saveCharacterInfo(lastWorldName)
     end
