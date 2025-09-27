@@ -44,7 +44,7 @@ local function onPlayerTalk(name, level, type, x, y, z, text)
     if name:lower() == Player.getName():lower() then
         -- Check if the message is an exiva spell.
         -- ^exiva%s+\"([^\"]+)\"$  -> Matches 'exiva "Player Name"'
-        local targetName = text:match("^exiva%s+\"([^\"]+)\"")
+        local targetName = text:match("^exiva%s+\"([^\"]+)\"$")
         if targetName then
             print(">> New exiva target set from manual cast: " .. targetName)
             currentTargetName = targetName
