@@ -1,6 +1,7 @@
+local gameWindow = Client.getGameWindowDimensions()
 local ICON_ITEM_ID = 4843
-local ICON_POSITION_X = 10
-local ICON_POSITION_Y = 560
+local ICON_POSITION_X = 50
+local ICON_POSITION_Y = gameWindow.height - 42 -- 32px icon height + 10px margin
 local LIST_MARGIN_X = -10
 local LIST_START_Y = 20
 local TRACKER_TEXT_Y_OFFSET = 0
@@ -64,7 +65,7 @@ local function getCharacterInfoPath(worldNameOverride)
     -- Trim whitespace from world name
     worldName = worldName:gsub("^%s*(.-)%s*$", "%1")
 
-    return string.format("%s/charInfo_%s.json", scriptsDir, worldName)
+    return string.format("%s/GozzimScripts/Storage/charInfo_%s.json", scriptsDir, worldName)
 end
 
 local function saveCharacterInfo(worldNameToSave)
@@ -798,14 +799,14 @@ local function updatePlayerDisplays()
     -- Tracker Section
     local playersFoundThisTick_tracker = {}
     if isTrackerEnabled then
-        local gameWindow = Client.getGameWindowDimensions()
-        if gameWindow and gameWindow.width > 0 then
-            local calibratedX = gameWindow.x - 15
-            local calibratedY = gameWindow.y - 28
-            local tileWidth = gameWindow.width / 15
-            local tileHeight = gameWindow.height / 11
-            local winCenterX = calibratedX + (gameWindow.width / 2)
-            local winCenterY = calibratedY + (gameWindow.height / 2)
+        local gameWindowTracker = Client.getGameWindowDimensions()
+        if gameWindowTracker and gameWindowTracker.width > 0 then
+            local calibratedX = gameWindowTracker.x - 15
+            local calibratedY = gameWindowTracker.y - 28
+            local tileWidth = gameWindowTracker.width / 15
+            local tileHeight = gameWindowTracker.height / 11
+            local winCenterX = calibratedX + (gameWindowTracker.width / 2)
+            local winCenterY = calibratedY + (gameWindowTracker.height / 2)
             local myPos_tracker = Map.getCameraPosition()
             local sameFloorPlayers = Map.getCreatureIds(true, true)
             if sameFloorPlayers then
@@ -849,19 +850,68 @@ local function updatePlayerDisplays()
     end
 end
 
-settingsIcon = HUD.new(ICON_POSITION_X, ICON_POSITION_Y, ICON_ITEM_ID, true)
-if settingsIcon then
-    settingsIcon:setCallback(openSettingsModal)
+local function load()
+    settingsIcon = HUD.new(ICON_POSITION_X, ICON_POSITION_Y, ICON_ITEM_ID, true)
+    if settingsIcon then
+        settingsIcon:setCallback(openSettingsModal)
+    end
+
+    Game.registerEvent(Game.Events.TALK, onPlayerTalk)
+    Game.registerEvent(Game.Events.TEXT_MESSAGE, onServerLogMessage)
+    Timer.new("PlayerInfoTimer", updatePlayerDisplays, SCAN_INTERVAL_MS, true)
+
+    -- Initial Load
+    if Client.isConnected() and Client.getWorldName() then
+        lastWorldName = Client.getWorldName()
+        loadCharacterInfo()
+    end
+
+    print(">> Advanced Player Display loaded.")
 end
 
-Game.registerEvent(Game.Events.TALK, onPlayerTalk)
-Game.registerEvent(Game.Events.TEXT_MESSAGE, onServerLogMessage)
-Timer.new("PlayerInfoTimer", updatePlayerDisplays, SCAN_INTERVAL_MS, true)
+local function unload()
+    -- Save data before quitting
+    if lastWorldName then
+        saveCharacterInfo(lastWorldName)
+    end
 
--- Initial Load
-if Client.isConnected() and Client.getWorldName() then
-    lastWorldName = Client.getWorldName()
-    loadCharacterInfo()
+    -- Stop the main timer
+    destroyTimer("PlayerInfoTimer")
+
+    -- Unregister events
+    Game.unregisterEvent(Game.Events.TALK, onPlayerTalk)
+    Game.unregisterEvent(Game.Events.TEXT_MESSAGE, onServerLogMessage)
+
+    -- Destroy main icon
+    if settingsIcon then
+        settingsIcon:destroy()
+        settingsIcon = nil
+    end
+
+    -- Destroy settings modal if open
+    if settingsModal then
+        settingsModal:destroy()
+        settingsModal = nil
+    end
+
+    -- Clean up all dynamic HUDs created by the main loop
+    cleanupAllHuds()
+
+    -- Reset state
+    knownPlayerLevels = {}
+    activePlayerHuds = {}
+    activeHeaderHuds = {}
+    activeTrackerHuds = {}
+    activeMonsterHuds = {}
+    activeMonsterHeaderHuds = {}
+    activeNpcHuds = {}
+    activeNpcHeaderHuds = {}
+    lastWorldName = nil
+
+    print(">> Advanced Player Display unloaded.")
 end
 
-print(">> Advanced Player Display loaded.")
+return {
+    load = load,
+    unload = unload
+}

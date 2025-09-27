@@ -35,9 +35,19 @@ local function oberonTalkHandler(authorName, authorLevel, type, x, y, z, text, c
     --end
 end
 
--- Register our handler function to listen for the TALK event.
--- This tells the game engine to call oberonTalkHandler whenever a message appears in chat.
-Game.registerEvent(Game.Events.TALK, oberonTalkHandler)
+local function load()
+    -- Register our handler function to listen for the TALK event.
+    Game.registerEvent(Game.Events.TALK, oberonTalkHandler)
+    -- Prints a confirmation message in the Zerobot console when the script is loaded.
+    print('>> Corrected Oberon Auto-Responder has been loaded and is active.')
+end
 
--- Prints a confirmation message in the Zerobot console when the script is loaded.
-print('>> Corrected Oberon Auto-Responder has been loaded and is active.')
+local function unload()
+    Game.unregisterEvent(Game.Events.TALK, oberonTalkHandler)
+    print('>> Corrected Oberon Auto-Responder has been unloaded.')
+end
+
+return {
+    load = load,
+    unload = unload
+}

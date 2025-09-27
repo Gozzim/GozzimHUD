@@ -105,19 +105,35 @@ local function onTextMessage(messageData)
     end
 end
 
+local function load()
+    autoSkinIcon = HUD.new(ICON_POSITION_X, ICON_POSITION_Y, ICON_ITEM_ID, true)
 
--- ################# SCRIPT INITIALIZATION #################
+    if autoSkinIcon then
+        autoSkinIcon:setOpacity(OPACITY_OFF)
+        autoSkinIcon:setCallback(toggleAutoSkin)
 
-autoSkinIcon = HUD.new(ICON_POSITION_X, ICON_POSITION_Y, ICON_ITEM_ID, true)
+        -- Register the event listener for monster kills.
+        Game.registerEvent(Game.Events.TEXT_MESSAGE, onTextMessage)
 
-if autoSkinIcon then
-    autoSkinIcon:setOpacity(OPACITY_OFF)
-    autoSkinIcon:setCallback(toggleAutoSkin)
-
-    -- Register the event listener for monster kills.
-    Game.registerEvent(Game.Events.TEXT_MESSAGE, onTextMessage)
-
-    print(">> Auto-Skinner HUD loaded.")
-else
-    print(">> ERROR: Failed to create Auto-Skinner HUD.")
+        print(">> Auto-Skinner HUD loaded.")
+    else
+        print(">> ERROR: Failed to create Auto-Skinner HUD.")
+    end
 end
+
+local function unload()
+    if autoSkinIcon then
+        autoSkinIcon:destroy()
+        autoSkinIcon = nil
+    end
+    Game.unregisterEvent(Game.Events.TEXT_MESSAGE, onTextMessage)
+    -- Although it's a one-shot timer, it's good practice to clean it up
+    -- in case the script is unloaded before the timer fires.
+    destroyTimer("SkinScanTimer")
+    print(">> Auto-Skinner HUD unloaded.")
+end
+
+return {
+    load = load,
+    unload = unload
+}

@@ -113,18 +113,32 @@ local function castUtitoIfNeeded()
     Game.talk(UTITO_SPELL_WORDS, Enums.TalkTypes.TALKTYPE_SAY)
 end
 
--- ################# SCRIPT INITIALIZATION #################
+local function load()
+    autoUtitoIcon = HUD.new(ICON_POSITION_X, ICON_POSITION_Y, ICON_ITEM_ID, true)
 
-autoUtitoIcon = HUD.new(ICON_POSITION_X, ICON_POSITION_Y, ICON_ITEM_ID, true)
+    if autoUtitoIcon then
+        autoUtitoIcon:setOpacity(OPACITY_OFF)
+        autoUtitoIcon:setCallback(toggleAutoUtito)
 
-if autoUtitoIcon then
-    autoUtitoIcon:setOpacity(OPACITY_OFF)
-    autoUtitoIcon:setCallback(toggleAutoUtito)
+        -- Create a recurring timer that runs the main logic loop.
+        Timer.new("AutoUtitoTimer", castUtitoIfNeeded, CHECK_INTERVAL_MS, true)
 
-    -- Create a recurring timer that runs the main logic loop.
-    Timer.new("AutoUtitoTimer", castUtitoIfNeeded, CHECK_INTERVAL_MS, true)
-
-    print(">> Auto 'Utito Tempo' HUD loaded.")
-else
-    print(">> ERROR: Failed to create Auto 'Utito Tempo' HUD.")
+        print(">> Auto 'Utito Tempo' HUD loaded.")
+    else
+        print(">> ERROR: Failed to create Auto 'Utito Tempo' HUD.")
+    end
 end
+
+local function unload()
+    if autoUtitoIcon then
+        autoUtitoIcon:destroy()
+        autoUtitoIcon = nil
+    end
+    destroyTimer("AutoUtitoTimer")
+    print(">> Auto 'Utito Tempo' HUD unloaded.")
+end
+
+return {
+    load = load,
+    unload = unload
+}

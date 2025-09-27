@@ -56,24 +56,37 @@ local function toggleAntiPush()
     end, 100, false) -- Runs once after 100ms
 end
 
+local function load()
+    -- Create the HUD icon using the item ID and position from the config.
+    antiPushIcon = HUD.new(ICON_POSITION_X, ICON_POSITION_Y, ICON_ITEM_ID, true)
 
--- ################# SCRIPT INITIALIZATION #################
+    if antiPushIcon then
+        -- Set the icon's click action to our toggle function.
+        antiPushIcon:setCallback(toggleAntiPush)
 
--- Create the HUD icon using the item ID and position from the config.
-antiPushIcon = HUD.new(ICON_POSITION_X, ICON_POSITION_Y, ICON_ITEM_ID, true)
+        -- Set the initial appearance of the icon when the script loads.
+        updateIconState()
 
-if antiPushIcon then
-    -- Set the icon's click action to our toggle function.
-    antiPushIcon:setCallback(toggleAntiPush)
+        -- Create a recurring timer to keep the icon's state synchronized.
+        Timer.new("AntiPushSyncTimer", updateIconState, SYNC_INTERVAL_MS, true)
 
-    -- Set the initial appearance of the icon when the script loads.
-    updateIconState()
-
-    -- Create a recurring timer to keep the icon's state synchronized.
-    Timer.new("AntiPushSyncTimer", updateIconState, SYNC_INTERVAL_MS, true)
-
-    -- Print a confirmation message in the Zerobot console.
-    print(">> Anti-Push Toggle HUD loaded. Click the magic wall icon to toggle.")
-else
-    print(">> ERROR: Failed to create Anti-Push Toggle HUD.")
+        -- Print a confirmation message in the Zerobot console.
+        print(">> Anti-Push Toggle HUD loaded. Click the magic wall icon to toggle.")
+    else
+        print(">> ERROR: Failed to create Anti-Push Toggle HUD.")
+    end
 end
+
+local function unload()
+    if antiPushIcon then
+        antiPushIcon:destroy()
+        antiPushIcon = nil
+    end
+    destroyTimer("AntiPushSyncTimer")
+    print(">> Anti-Push Toggle HUD unloaded.")
+end
+
+return {
+    load = load,
+    unload = unload
+}

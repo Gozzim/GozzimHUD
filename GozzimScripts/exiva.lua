@@ -17,11 +17,11 @@ local FRENZY_ICON_ID = 6546 -- Dracolas Eye
 local COLOR_TARGET = { r = 200, g = 200, b = 80 }
 
 -- Position of the icons and text display.
-local MAIN_ICON_POS_X = 50
+local MAIN_ICON_POS_X = 10
 local MAIN_ICON_POS_Y = 560
-local FRENZY_ICON_POS_X = 90
+local FRENZY_ICON_POS_X = 50
 local FRENZY_ICON_POS_Y = 560
-local TARGET_TEXT_POS_X = 50
+local TARGET_TEXT_POS_X = 10
 local TARGET_TEXT_POS_Y = 590
 
 -- Opacity for icons when ON vs OFF.
@@ -44,7 +44,7 @@ local function onPlayerTalk(name, level, type, x, y, z, text)
     if name:lower() == Player.getName():lower() then
         -- Check if the message is an exiva spell.
         -- ^exiva%s+\"([^\"]+)\"$  -> Matches 'exiva "Player Name"'
-        local targetName = text:match("^exiva%s+\"([^\"]+)\"$")
+        local targetName = text:match("^exiva%s+\"([^\"]+)\"")
         if targetName then
             print(">> New exiva target set from manual cast: " .. targetName)
             currentTargetName = targetName
@@ -130,27 +130,51 @@ local function exivaLoop()
     Game.talk(EXIVA_SPELL_WORDS .. " \"" .. currentTargetName .. "\"", Enums.TalkTypes.TALKTYPE_SAY)
 end
 
+local function load()
+    exivaIcon = HUD.new(MAIN_ICON_POS_X, MAIN_ICON_POS_Y, MAIN_ICON_ID, true)
+    frenzyIcon = HUD.new(FRENZY_ICON_POS_X, FRENZY_ICON_POS_Y, FRENZY_ICON_ID, true)
+    targetDisplayHud = HUD.new(TARGET_TEXT_POS_X, TARGET_TEXT_POS_Y, "No Target", true)
 
--- ################# SCRIPT INITIALIZATION #################
+    if exivaIcon and frenzyIcon and targetDisplayHud then
+        targetDisplayHud:setColor(COLOR_TARGET.r, COLOR_TARGET.g, COLOR_TARGET.b)
+        exivaIcon:setOpacity(OPACITY_OFF)
+        frenzyIcon:setOpacity(OPACITY_OFF)
+        targetDisplayHud:hide()
 
-exivaIcon = HUD.new(MAIN_ICON_POS_X, MAIN_ICON_POS_Y, MAIN_ICON_ID, true)
-frenzyIcon = HUD.new(FRENZY_ICON_POS_X, FRENZY_ICON_POS_Y, FRENZY_ICON_ID, true)
-targetDisplayHud = HUD.new(TARGET_TEXT_POS_X, TARGET_TEXT_POS_Y, "No Target", true)
-targetDisplayHud:setColor(COLOR_TARGET.r, COLOR_TARGET.g, COLOR_TARGET.b)
+        exivaIcon:setCallback(toggleExiva)
+        frenzyIcon:setCallback(toggleFrenzy)
 
-if exivaIcon and frenzyIcon and targetDisplayHud then
-    exivaIcon:setOpacity(OPACITY_OFF)
-    frenzyIcon:setOpacity(OPACITY_OFF)
-    targetDisplayHud:hide()
+        -- Register the event listener for your own chat messages.
+        Game.registerEvent(Game.Events.TALK, onPlayerTalk)
+        Timer.new("SmartExivaTimer", exivaLoop, EXIVA_INTERVAL_MS, true)
 
-    exivaIcon:setCallback(toggleExiva)
-    frenzyIcon:setCallback(toggleFrenzy)
-
-    -- Register the event listener for your own chat messages.
-    Game.registerEvent(Game.Events.TALK, onPlayerTalk)
-    Timer.new("SmartExivaTimer", exivaLoop, EXIVA_INTERVAL_MS, true)
-
-    print(">> Smart Exiva script loaded.")
-else
-    print(">> ERROR: Failed to create Smart Exiva HUD.")
+        print(">> Smart Exiva script loaded.")
+    else
+        print(">> ERROR: Failed to create Smart Exiva HUD.")
+    end
 end
+
+local function unload()
+    if exivaIcon then
+        exivaIcon:destroy()
+        exivaIcon = nil
+    end
+    if frenzyIcon then
+        frenzyIcon:destroy()
+        frenzyIcon = nil
+    end
+    if targetDisplayHud then
+        targetDisplayHud:destroy()
+        targetDisplayHud = nil
+    end
+
+    Game.unregisterEvent(Game.Events.TALK, onPlayerTalk)
+
+    destroyTimer("SmartExivaTimer")
+    print(">> Smart Exiva script unloaded.")
+end
+
+return {
+    load = load,
+    unload = unload
+}

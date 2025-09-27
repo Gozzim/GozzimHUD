@@ -66,21 +66,35 @@ local function eatFoodIfNeeded()
     end
 end
 
--- ################# SCRIPT INITIALIZATION #################
+local function load()
+    -- Create the HUD icon using the food item ID and position from the config.
+    foodIcon = HUD.new(ICON_POSITION_X, ICON_POSITION_Y, FOOD_ITEM_ID, true)
 
--- Create the HUD icon using the food item ID and position from the config.
-foodIcon = HUD.new(ICON_POSITION_X, ICON_POSITION_Y, FOOD_ITEM_ID, true)
+    if foodIcon then
+        foodIcon:setOpacity(OPACITY_ON)
 
-if foodIcon then
-    foodIcon:setOpacity(OPACITY_ON)
+        -- Assign our toggleFoodEating function to be called when the icon is clicked.
+        foodIcon:setCallback(toggleFoodEating)
 
-    -- Assign our toggleFoodEating function to be called when the icon is clicked.
-    foodIcon:setCallback(toggleFoodEating)
+        -- Create a recurring timer that calls eatFoodIfNeeded.
+        Timer.new("FoodTimer", eatFoodIfNeeded, EAT_INTERVAL_MS, true)
 
-    -- Create a recurring timer that calls eatFoodIfNeeded.
-    Timer.new("FoodTimer", eatFoodIfNeeded, EAT_INTERVAL_MS, true)
-
-    print(">> Auto-Eating HUD loaded.")
-else
-    print(">> ERROR: Failed to create Auto-Eating HUD.")
+        print(">> Auto-Eating HUD loaded.")
+    else
+        print(">> ERROR: Failed to create Auto-Eating HUD.")
+    end
 end
+
+local function unload()
+    if foodIcon then
+        foodIcon:destroy()
+        foodIcon = nil
+    end
+    destroyTimer("FoodTimer")
+    print(">> Auto-Eating HUD unloaded.")
+end
+
+return {
+    load = load,
+    unload = unload
+}
