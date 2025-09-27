@@ -59,26 +59,39 @@ local function toggleRuneMax()
     end, 100, false)
 end
 
+local function load()
+    -- Get the initial rune ID to create the icon for the first time.
+    local initialRuneId = Engine.getRuneMaxId()
+    if initialRuneId == 0 then
+        -- Default to an SD rune if no rune is configured yet.
+        initialRuneId = 3155
+        print(">> Rune Max: No rune configured. Defaulting to SD icon.")
+    end
+    currentIconId = initialRuneId
 
--- ################# SCRIPT INITIALIZATION #################
+    runeMaxIcon = HUD.new(ICON_POSITION_X, ICON_POSITION_Y, currentIconId, true)
 
--- Get the initial rune ID to create the icon for the first time.
-local initialRuneId = Engine.getRuneMaxId()
-if initialRuneId == 0 then
-    -- Default to an SD rune if no rune is configured yet.
-    initialRuneId = 3155
-    print(">> Rune Max: No rune configured. Defaulting to SD icon.")
+    if runeMaxIcon then
+        runeMaxIcon:setCallback(toggleRuneMax)
+        updateIconState() -- Set the initial appearance and state.
+        Timer.new("RuneMaxSyncTimer", updateIconState, SYNC_INTERVAL_MS, true)
+
+        print(">> Dynamic Rune Max Toggle HUD loaded. Icon will match your configuration.")
+    else
+        print(">> ERROR: Failed to create Dynamic Rune Max Toggle HUD.")
+    end
 end
-currentIconId = initialRuneId
 
-runeMaxIcon = HUD.new(ICON_POSITION_X, ICON_POSITION_Y, currentIconId, true)
-
-if runeMaxIcon then
-    runeMaxIcon:setCallback(toggleRuneMax)
-    updateIconState() -- Set the initial appearance and state.
-    Timer.new("RuneMaxSyncTimer", updateIconState, SYNC_INTERVAL_MS, true)
-
-    print(">> Dynamic Rune Max Toggle HUD loaded. Icon will match your configuration.")
-else
-    print(">> ERROR: Failed to create Dynamic Rune Max Toggle HUD.")
+local function unload()
+    if runeMaxIcon then
+        runeMaxIcon:destroy()
+        runeMaxIcon = nil
+    end
+    destroyTimer("RuneMaxSyncTimer")
+    print(">> Dynamic Rune Max Toggle HUD unloaded.")
 end
+
+return {
+    load = load,
+    unload = unload
+}

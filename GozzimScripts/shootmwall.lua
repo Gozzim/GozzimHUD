@@ -25,6 +25,8 @@ local TEXT_POSITION_X = (ICON_POSITION_X + ICON_WIDTH / 2) - (TEXT_WIDTH / 2) - 
 local TEXT_POSITION_Y = ICON_POSITION_Y + ICON_HEIGHT - 16
 -- ######################################################
 
+local magicWallIcon = nil
+local hotkeyText = nil
 
 -- This is the main function that performs the action.
 local function shootMagicWall()
@@ -82,25 +84,42 @@ local function onHotkeyPress(key, modifier)
     end
 end
 
+local function load()
+    -- Create the item icon for the HUD.
+    magicWallIcon = HUD.new(ICON_POSITION_X, ICON_POSITION_Y, MAGIC_WALL_RUNE_ID, true)
+    -- Create the text element for the HUD using our calculated coordinates.
+    hotkeyText = HUD.new(TEXT_POSITION_X, TEXT_POSITION_Y, HOTKEY_COMBINATION, true)
 
--- ################# SCRIPT INITIALIZATION #################
+    if magicWallIcon and hotkeyText then
+        -- Make the item icon clickable.
+        magicWallIcon:setCallback(shootMagicWall)
 
--- Create the item icon for the HUD.
-local magicWallIcon = HUD.new(ICON_POSITION_X, ICON_POSITION_Y, MAGIC_WALL_RUNE_ID, true)
--- Create the text element for the HUD using our calculated coordinates.
-local hotkeyText = HUD.new(TEXT_POSITION_X, TEXT_POSITION_Y, HOTKEY_COMBINATION, true)
+        -- Style the hotkey text.
+        hotkeyText:setColor(200, 200, 200)
 
-if magicWallIcon and hotkeyText then
-    -- Make the item icon clickable.
-    magicWallIcon:setCallback(shootMagicWall)
+        -- Register the event listener for the keyboard hotkey.
+        Game.registerEvent(Game.Events.HOTKEY_SHORTCUT_PRESS, onHotkeyPress)
 
-    -- Style the hotkey text.
-    hotkeyText:setColor(200, 200, 200)
-
-    -- Register the event listener for the keyboard hotkey.
-    Game.registerEvent(Game.Events.HOTKEY_SHORTCUT_PRESS, onHotkeyPress)
-
-    print(">> Magic Wall Hotkey HUD loaded. Press '" .. HOTKEY_COMBINATION .. "' or click the icon.")
-else
-    print(">> ERROR: Failed to create Magic Wall Hotkey HUD.")
+        print(">> Magic Wall Hotkey HUD loaded. Press '" .. HOTKEY_COMBINATION .. "' or click the icon.")
+    else
+        print(">> ERROR: Failed to create Magic Wall Hotkey HUD.")
+    end
 end
+
+local function unload()
+    if magicWallIcon then
+        magicWallIcon:destroy()
+        magicWallIcon = nil
+    end
+    if hotkeyText then
+        hotkeyText:destroy()
+        hotkeyText = nil
+    end
+    Game.unregisterEvent(Game.Events.HOTKEY_SHORTCUT_PRESS, onHotkeyPress)
+    print(">> Magic Wall Hotkey HUD unloaded.")
+end
+
+return {
+    load = load,
+    unload = unload
+}

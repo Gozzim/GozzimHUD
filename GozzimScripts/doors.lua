@@ -147,19 +147,37 @@ local function mainDoorLoop()
     lastPosition = currentPos
 end
 
--- ################# SCRIPT INITIALIZATION #################
+local function load()
+    autoDoorIcon = HUD.new(ICON_POSITION_X, ICON_POSITION_Y, ICON_ITEM_ID, true)
 
-autoDoorIcon = HUD.new(ICON_POSITION_X, ICON_POSITION_Y, ICON_ITEM_ID, true)
+    if autoDoorIcon then
+        autoDoorIcon:setOpacity(OPACITY_ON)
+        autoDoorIcon:setCallback(toggleAutoDoor)
 
-if autoDoorIcon then
-    autoDoorIcon:setOpacity(OPACITY_ON)
-    autoDoorIcon:setCallback(toggleAutoDoor)
+        -- Register BOTH systems to run in parallel.
+        Game.registerEvent(Game.Events.HOTKEY_SHORTCUT_PRESS, onHotkeyPress) -- System 1
+        Timer.new("ProactiveDoorTimer", mainDoorLoop, POLLING_RATE_MS, true) -- System 2
 
-    -- Register BOTH systems to run in parallel.
-    Game.registerEvent(Game.Events.HOTKEY_SHORTCUT_PRESS, onHotkeyPress) -- System 1
-    Timer.new("ProactiveDoorTimer", mainDoorLoop, POLLING_RATE_MS, true) -- System 2
-
-    print(">> Auto Door Opener HUD loaded.")
-else
-    print(">> ERROR: Failed to create Auto Door Opener HUD.")
+        print(">> Auto Door Opener HUD loaded.")
+    else
+        print(">> ERROR: Failed to create Auto Door Opener HUD.")
+    end
 end
+
+local function unload()
+    if autoDoorIcon then
+        autoDoorIcon:destroy()
+        autoDoorIcon = nil
+    end
+
+    Game.unregisterEvent(Game.Events.HOTKEY_SHORTCUT_PRESS, onHotkeyPress)
+
+    destroyTimer("ProactiveDoorTimer")
+
+    print(">> Auto Door Opener HUD unloaded.")
+end
+
+return {
+    load = load,
+    unload = unload
+}

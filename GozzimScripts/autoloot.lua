@@ -64,24 +64,37 @@ local function onTextMessage(messageData)
     end
 end
 
+local function load()
+    -- Create the HUD icon using the item ID and position from the config.
+    autoLootIcon = HUD.new(ICON_POSITION_X, ICON_POSITION_Y, ICON_ITEM_ID, true)
 
--- ################# SCRIPT INITIALIZATION #################
+    if autoLootIcon then
+        -- Set the icon's initial state to ON (fully visible).
+        autoLootIcon:setOpacity(OPACITY_ON)
 
--- Create the HUD icon using the item ID and position from the config.
-autoLootIcon = HUD.new(ICON_POSITION_X, ICON_POSITION_Y, ICON_ITEM_ID, true)
+        -- Assign our toggle function to be called when the icon is clicked.
+        autoLootIcon:setCallback(toggleAutoLoot)
 
-if autoLootIcon then
-    -- Set the icon's initial state to ON (fully visible).
-    autoLootIcon:setOpacity(OPACITY_ON)
+        -- Register our onTextMessage function to listen for game messages.
+        Game.registerEvent(Game.Events.TEXT_MESSAGE, onTextMessage)
 
-    -- Assign our toggle function to be called when the icon is clicked.
-    autoLootIcon:setCallback(toggleAutoLoot)
-
-    -- Register our onTextMessage function to listen for game messages.
-    Game.registerEvent(Game.Events.TEXT_MESSAGE, onTextMessage)
-
-    -- Print a confirmation message in the Zerobot console.
-    print(">> Auto-Loot on Kill HUD loaded and ENABLED by default. Click the loot bag icon to toggle.")
-else
-    print(">> ERROR: Failed to create Auto-Loot on Kill HUD.")
+        -- Print a confirmation message in the Zerobot console.
+        print(">> Auto-Loot on Kill HUD loaded and ENABLED by default. Click the loot bag icon to toggle.")
+    else
+        print(">> ERROR: Failed to create Auto-Loot on Kill HUD.")
+    end
 end
+
+local function unload()
+    if autoLootIcon then
+        autoLootIcon:destroy()
+        autoLootIcon = nil
+    end
+    Game.unregisterEvent(Game.Events.TEXT_MESSAGE, onTextMessage)
+    print(">> Auto-Loot on Kill HUD unloaded.")
+end
+
+return {
+    load = load,
+    unload = unload
+}

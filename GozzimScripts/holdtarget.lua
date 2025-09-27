@@ -56,25 +56,37 @@ local function toggleHoldTarget()
     end, 100, false) -- Runs once after 100ms
 end
 
+local function load()
+    -- Create the HUD icon using the item ID and position from the config.
+    holdTargetIcon = HUD.new(ICON_POSITION_X, ICON_POSITION_Y, ICON_ITEM_ID, true)
 
--- ################# SCRIPT INITIALIZATION #################
+    if holdTargetIcon then
+        -- Set the icon's click action to our toggle function.
+        holdTargetIcon:setCallback(toggleHoldTarget)
 
--- Create the HUD icon using the item ID and position from the config.
-holdTargetIcon = HUD.new(ICON_POSITION_X, ICON_POSITION_Y, ICON_ITEM_ID, true)
+        -- Set the initial appearance of the icon when the script loads.
+        updateIconState()
 
-if holdTargetIcon then
-    -- Set the icon's click action to our toggle function.
-    holdTargetIcon:setCallback(toggleHoldTarget)
+        -- Create a recurring timer to keep the icon's state synchronized.
+        Timer.new("HoldTargetSyncTimer", updateIconState, SYNC_INTERVAL_MS, true)
 
-    -- Set the initial appearance of the icon when the script loads.
-    updateIconState()
-
-    -- Create a recurring timer to keep the icon's state synchronized.
-    -- This handles cases where the user changes the setting manually in the UI.
-    Timer.new("HoldTargetSyncTimer", updateIconState, SYNC_INTERVAL_MS, true)
-
-    -- Print a confirmation message in the Zerobot console.
-    print(">> Hold Target Toggle HUD loaded.")
-else
-    print(">> ERROR: Failed to create Hold Target Toggle HUD.")
+        -- Print a confirmation message in the Zerobot console.
+        print(">> Hold Target Toggle HUD loaded.")
+    else
+        print(">> ERROR: Failed to create Hold Target Toggle HUD.")
+    end
 end
+
+local function unload()
+    if holdTargetIcon then
+        holdTargetIcon:destroy()
+        holdTargetIcon = nil
+    end
+    destroyTimer("HoldTargetSyncTimer")
+    print(">> Hold Target Toggle HUD unloaded.")
+end
+
+return {
+    load = load,
+    unload = unload
+}
