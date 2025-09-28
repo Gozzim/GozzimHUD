@@ -2,10 +2,9 @@
 -- Creates a clickable icon to toggle automatic food eating.
 -- Will not eat while in a Protection Zone.
 
--- #################### CONFIGURATION ####################
--- The Item ID for the food you want to eat.
--- 3731 = Fire Mushroom
-local FOOD_ITEM_ID = 3731
+-- A prioritized list of Item IDs for the food you want to eat.
+-- Example: { 3731, 3725, 3724 } -- Fire Mushroom, Brown Mushroom, Red Mushroom
+local FOOD_ITEM_IDS = { 3731, 3725, 3724 }
 
 -- How often the script checks if you are hungry (in milliseconds).
 local EAT_INTERVAL_MS = 1000 -- Check every 1 second
@@ -25,6 +24,33 @@ local isAutoEatingActive = true
 
 -- This will hold our HUD object.
 local foodIcon = nil
+-- This tracks the item ID currently displayed on the icon.
+local currentIconId = nil
+
+local function findValidFood()
+    for _, foodId in ipairs(FOOD_ITEM_IDS) do
+        if Game.getItemCount(foodId) > 0 then
+            return foodId
+        end
+    end
+    return nil
+end
+
+-- This function updates the icon to the best available food.
+local function updateFoodIcon(foodIconId)
+    if not foodIcon then
+        return
+    end
+
+    if not foodIconId or foodIcon == nil then
+        foodIconId = FOOD_ITEM_IDS[1]
+    end
+
+    if foodIconId ~= currentIconId then
+        foodIcon:setItemId(foodIconId)
+        currentIconId = foodIconId
+    end
+end
 
 -- This function is called when the HUD icon is clicked.
 local function toggleFoodEating()
@@ -49,29 +75,35 @@ local function eatFoodIfNeeded()
         return
     end
 
-    -- Check all conditions before eating.
-    local canEat = true
-    if Player.getState(Enums.States.STATE_PIGEON) then
-        canEat = false -- In a protection zone.
-    elseif not Player.isHungry() then
-        canEat = false -- Not hungry.
-    elseif Game.getItemCount(FOOD_ITEM_ID) <= 0 then
-        canEat = false -- No food found.
+    -- Don't eat if in a protection zone or not hungry.
+    if Player.getState(Enums.States.STATE_PIGEON) or not Player.isHungry() then
+        return
     end
 
-    -- If all checks passed, use the food item.
-    if canEat then
-        Game.useItem(FOOD_ITEM_ID)
-        print(">> Eating food.")
+    local foodId = findValidFood()
+    if foodId == nil then
+        return
     end
+
+    Game.useItem(foodId)
+    updateFoodIcon(foodId)
 end
 
 local function load()
-    -- Create the HUD icon using the food item ID and position from the config.
-    foodIcon = HUD.new(ICON_POSITION_X, ICON_POSITION_Y, FOOD_ITEM_ID, true)
+    -- Ensure there are food items configured.
+    if #FOOD_ITEM_IDS == 0 then
+        print(">> ERROR: No food items configured in eat.lua.")
+        return
+    end
+
+    -- Create the HUD icon with a default item.
+    foodIcon = HUD.new(ICON_POSITION_X, ICON_POSITION_Y, FOOD_ITEM_IDS[1], true)
 
     if foodIcon then
         foodIcon:setOpacity(OPACITY_ON)
+
+        -- Set the correct initial icon based on inventory.
+        updateFoodIcon(findValidFood())
 
         -- Assign our toggleFoodEating function to be called when the icon is clicked.
         foodIcon:setCallback(toggleFoodEating)
