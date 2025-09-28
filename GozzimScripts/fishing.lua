@@ -49,6 +49,24 @@ local lastWormCount = -1
 local fishingState = "IDLE"
 local castTimestamp = 0
 
+local function toggleFishing()
+    isFishingActive = not isFishingActive
+    if isFishingActive then
+        fishingIcon:setOpacity(OPACITY_ON)
+        if wormCountHud then
+            wormCountHud:setColor(COLOR_ACTIVE.r, COLOR_ACTIVE.g, COLOR_ACTIVE.b)
+        end
+        print(">> Auto-Fishing ENABLED.")
+        fishingState = "IDLE"
+    else
+        fishingIcon:setOpacity(OPACITY_OFF)
+        if wormCountHud then
+            wormCountHud:setColor(COLOR_INACTIVE.r, COLOR_INACTIVE.g, COLOR_INACTIVE.b)
+        end
+        print(">> Auto-Fishing DISABLED.")
+    end
+end
+
 -- This function finds a random spot and casts the line.
 local function findSpotAndCast()
     if Game.getItemCount(FISHING_ROD_ID) == 0 then
@@ -122,39 +140,38 @@ local function fishingLoop()
     end
 end
 
--- This function is called when the HUD icon is clicked.
-toggleFishing = function()
-    isFishingActive = not isFishingActive
-    if isFishingActive then
-        fishingIcon:setOpacity(OPACITY_ON)
-        if wormCountHud then
-            wormCountHud:setColor(COLOR_ACTIVE.r, COLOR_ACTIVE.g, COLOR_ACTIVE.b)
-        end
-        print(">> Auto-Fishing ENABLED.")
-        fishingState = "IDLE"
-    else
+local function load()
+    fishingIcon = HUD.new(ICON_POSITION_X, ICON_POSITION_Y, ICON_ITEM_ID, true)
+    wormCountHud = HUD.new(COUNT_POSITION_X, COUNT_POSITION_Y, "0", true)
+
+    if fishingIcon and wormCountHud then
+        fishingIcon:setCallback(toggleFishing)
         fishingIcon:setOpacity(OPACITY_OFF)
-        if wormCountHud then
-            wormCountHud:setColor(COLOR_INACTIVE.r, COLOR_INACTIVE.g, COLOR_INACTIVE.b)
-        end
-        print(">> Auto-Fishing DISABLED.")
+
+        -- Style the worm count text and set its initial inactive color.
+        wormCountHud:setColor(COLOR_INACTIVE.r, COLOR_INACTIVE.g, COLOR_INACTIVE.b)
+
+        Timer.new("FishingMasterTimer", fishingLoop, LOOP_INTERVAL_MS, true)
+        print(">> Auto-Fishing HUD loaded.")
+    else
+        print(">> ERROR: Failed to create Auto-Fishing HUD.")
     end
 end
 
--- ################# SCRIPT INITIALIZATION #################
-
-fishingIcon = HUD.new(ICON_POSITION_X, ICON_POSITION_Y, ICON_ITEM_ID, true)
-wormCountHud = HUD.new(COUNT_POSITION_X, COUNT_POSITION_Y, "0", true)
-
-if fishingIcon and wormCountHud then
-    fishingIcon:setCallback(toggleFishing)
-    fishingIcon:setOpacity(OPACITY_OFF)
-
-    -- Style the worm count text and set its initial inactive color.
-    wormCountHud:setColor(COLOR_INACTIVE.r, COLOR_INACTIVE.g, COLOR_INACTIVE.b)
-
-    Timer.new("FishingMasterTimer", fishingLoop, LOOP_INTERVAL_MS, true)
-    print(">> Auto-Fishing HUD loaded.")
-else
-    print(">> ERROR: Failed to create Auto-Fishing HUD.")
+local function unload()
+    if fishingIcon then
+        fishingIcon:destroy()
+        fishingIcon = nil
+    end
+    if wormCountHud then
+        wormCountHud:destroy()
+        wormCountHud = nil
+    end
+    destroyTimer("FishingMasterTimer")
+    print(">> Auto-Fishing HUD unloaded.")
 end
+
+return {
+    load = load,
+    unload = unload
+}

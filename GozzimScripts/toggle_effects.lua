@@ -34,16 +34,29 @@ local function pressToggleHotkey()
     end
 end
 
--- ################# SCRIPT INITIALIZATION #################
+local function load()
+    -- Create the HUD icon.
+    effectsButtonIcon = HUD.new(ICON_POSITION_X, ICON_POSITION_Y, ICON_ITEM_ID, true)
 
--- Create the HUD icon.
-effectsButtonIcon = HUD.new(ICON_POSITION_X, ICON_POSITION_Y, ICON_ITEM_ID, true)
+    if effectsButtonIcon then
+        -- Assign our pressToggleHotkey function to be called when the icon is clicked.
+        effectsButtonIcon:setCallback(pressToggleHotkey)
 
-if effectsButtonIcon then
-    -- Assign our pressToggleHotkey function to be called when the icon is clicked.
-    effectsButtonIcon:setCallback(pressToggleHotkey)
-
-    print(">> Magic Effects Button HUD loaded. Click the ring icon to press '" .. TOGGLE_HOTKEY .. "'.")
-else
-    print(">> ERROR: Failed to create Magic Effects Button HUD.")
+        print(">> Magic Effects Button HUD loaded. Click the ring icon to press '" .. TOGGLE_HOTKEY .. "'.")
+    else
+        print(">> ERROR: Failed to create Magic Effects Button HUD.")
+    end
 end
+
+local function unload()
+    if effectsButtonIcon then
+        effectsButtonIcon:destroy()
+        effectsButtonIcon = nil
+    end
+    print(">> Magic Effects Button HUD unloaded.")
+end
+
+return {
+    load = load,
+    unload = unload
+}

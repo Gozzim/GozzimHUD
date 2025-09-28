@@ -1,6 +1,7 @@
+local gameWindow = Client.getGameWindowDimensions()
 local ICON_ITEM_ID = 4843
-local ICON_POSITION_X = 10
-local ICON_POSITION_Y = 560
+local ICON_POSITION_X = 50
+local ICON_POSITION_Y = gameWindow.height - 42 -- 32px icon height + 10px margin
 local LIST_MARGIN_X = -10
 local LIST_START_Y = 20
 local TRACKER_TEXT_Y_OFFSET = 0
@@ -49,30 +50,119 @@ local isAutoLookEnabled = false
 local showPlayers = true
 local showMonsters = true
 local showNpcs = false
+local playerClickAction = "Look"
 local settingsIcon = nil
 local settingsModal = nil
 local lastWorldName = nil
 
+-- Settings Storage
+local function getSettingsStorageFileName()
+    local worldName = Client.getWorldName()
+    local charName = Player.getName()
+    if not worldName or not charName then
+        return nil
+    end
+
+    -- Trim and replace spaces and colons
+    worldName = worldName:gsub("^%s*(.-)%s*$", "%1"):gsub("%s", "_"):gsub(":", ".")
+    charName = charName:gsub("^%s*(.-)%s*$", "%1"):gsub("%s", "_"):gsub(":", ".")
+
+    return string.format("%s_%s_char_info.json", worldName, charName)
+end
+
+local function saveSettings()
+    local fileName = getSettingsStorageFileName()
+    if not fileName then
+        return
+    end
+
+    local settings = {
+        isListEnabled = isListEnabled,
+        isTrackerEnabled = isTrackerEnabled,
+        maxFloorsAbove = maxFloorsAbove,
+        maxFloorsBelow = maxFloorsBelow,
+        showPartyMembers = showPartyMembers,
+        showGuildMates = showGuildMates,
+        subSortOrder = subSortOrder,
+        isCategorySortEnabled = isCategorySortEnabled,
+        isColorCodingEnabled = isColorCodingEnabled,
+        isAutoLookEnabled = isAutoLookEnabled,
+        showPlayers = showPlayers,
+        showMonsters = showMonsters,
+        showNpcs = showNpcs,
+        playerClickAction = playerClickAction
+    }
+
+    local filePath = Engine.getScriptsDirectory() .. "/GozzimScripts/Storage/" .. fileName
+    local file = io.open(filePath, "w")
+    if file then
+        file:write(JSON.encode(settings))
+        file:close()
+    end
+end
+
+local function loadSettings()
+    local fileName = getSettingsStorageFileName()
+    if not fileName then
+        return false
+    end
+
+    local filePath = Engine.getScriptsDirectory() .. "/GozzimScripts/Storage/" .. fileName
+    local file = io.open(filePath, "r")
+    if file then
+        local content = file:read("*a")
+        file:close()
+        if not content or content == "" then
+            return false
+        end
+        local success, settings = pcall(JSON.decode, content)
+        if success and type(settings) == "table" then
+            isListEnabled = settings.isListEnabled ~= false
+            isTrackerEnabled = settings.isTrackerEnabled ~= false
+            maxFloorsAbove = settings.maxFloorsAbove or maxFloorsAbove
+            maxFloorsBelow = settings.maxFloorsBelow or maxFloorsBelow
+            showPartyMembers = settings.showPartyMembers ~= false
+            showGuildMates = settings.showGuildMates ~= false
+            subSortOrder = settings.subSortOrder or subSortOrder
+            isCategorySortEnabled = settings.isCategorySortEnabled ~= false
+            isColorCodingEnabled = settings.isColorCodingEnabled ~= false
+            isAutoLookEnabled = settings.isAutoLookEnabled == true
+            showPlayers = settings.showPlayers ~= false
+            showMonsters = settings.showMonsters ~= false
+            showNpcs = settings.showNpcs == true
+            playerClickAction = settings.playerClickAction or "Look"
+            print(">> Char Info settings loaded.")
+            return true -- Settings loaded
+        else
+            print(">> Error loading Char Info settings: " .. tostring(settings))
+        end
+    end
+    return false -- No settings file or error
+end
+
+-- Character Data Storage (existing, but fixed)
 local function getCharacterInfoPath(worldNameOverride)
     local scriptsDir = Engine.getScriptsDirectory()
     local worldName = worldNameOverride or Client.getWorldName()
 
     if not scriptsDir or not worldName then
-        return nil
+        return nil, nil
     end
 
-    -- Trim whitespace from world name
-    worldName = worldName:gsub("^%s*(.-)%s*$", "%1")
+    -- Trim and replace spaces and colons
+    local sanitizedWorldName = worldName:gsub("^%s*(.-)%s*$", "%1"):gsub("%s", "_"):gsub(":", ".")
 
-    return string.format("%s/charInfo_%s.json", scriptsDir, worldName)
+    return string.format("%s/GozzimScripts/Storage/charInfo_%s.json", scriptsDir, sanitizedWorldName), sanitizedWorldName
 end
 
 local function saveCharacterInfo(worldNameToSave)
-    if not worldNameToSave then return end
+    if not worldNameToSave then
+        return
+    end
 
-    local path = getCharacterInfoPath(worldNameToSave)
+    local path, sanitizedWorldName = getCharacterInfoPath(worldNameToSave)
     if not path then
-        print("Could not save character info: Missing path components for world: " .. worldNameToSave)
+        print("Could not save character info: Missing path components for world: " .. (worldNameToSave or ""))
         return
     end
 
@@ -90,11 +180,11 @@ local function saveCharacterInfo(worldNameToSave)
 
     file:write(jsonData)
     file:close()
-    print(">> Character info saved for " .. worldNameToSave)
+    print(">> Character info saved for " .. sanitizedWorldName)
 end
 
 local function loadCharacterInfo()
-    local path = getCharacterInfoPath()
+    local path, sanitizedWorldName = getCharacterInfoPath()
     if not path then
         print("Could not load character info: Not connected or world name is unavailable.")
         knownPlayerLevels = {}
@@ -104,7 +194,7 @@ local function loadCharacterInfo()
     local file = io.open(path, "r")
     if not file then
         knownPlayerLevels = {}
-        print(">> No existing charInfo file found for " .. (Client.getWorldName() or "current world"))
+        print(">> No existing charInfo file found for " .. (sanitizedWorldName or Client.getWorldName() or "current world"))
         return
     end
 
@@ -115,7 +205,7 @@ local function loadCharacterInfo()
         local success, data = pcall(JSON.decode, content)
         if success and type(data) == "table" then
             knownPlayerLevels = data
-            print(">> Character info loaded for " .. Client.getWorldName())
+            print(">> Character info loaded for " .. (sanitizedWorldName or Client.getWorldName()))
         else
             print("Error decoding character info from JSON: " .. tostring(data))
             knownPlayerLevels = {}
@@ -180,6 +270,15 @@ local function onModalButtonClick(buttonIndex)
     elseif buttonIndex == 14 then
         showNpcs = not showNpcs
     elseif buttonIndex == 15 then
+        if playerClickAction == "Look" then
+            playerClickAction = "Attack"
+        elseif playerClickAction == "Attack" then
+            playerClickAction = "None"
+        else
+            playerClickAction = "Look"
+        end
+    elseif buttonIndex == 16 then
+        saveSettings()
         if lastWorldName then
             saveCharacterInfo(lastWorldName)
         end
@@ -207,6 +306,7 @@ openSettingsModal = function()
     local autoLookStatus = isAutoLookEnabled and 'Auto Look: <font color="#00FF00">ON</font>' or 'Auto Look: <font color="#FF6666">OFF</font>'
     local monsterStatus = showMonsters and 'Monsters: <font color="#00FF00">ON</font>' or 'Monsters: <font color="#FF6666">OFF</font>'
     local npcStatus = showNpcs and 'NPCs: <font color="#00FF00">ON</font>' or 'NPCs: <font color="#FF6666">OFF</font>'
+    local clickActionStatus = "Click: " .. playerClickAction
     local description = string.format("Floors Above: %d | Floors Below: %d", maxFloorsAbove, maxFloorsBelow)
     settingsModal = CustomModalWindow("Player Display Settings", description)
     settingsModal:addButton('Floors Above [-]')
@@ -224,8 +324,31 @@ openSettingsModal = function()
     settingsModal:addButton(playerStatus)
     settingsModal:addButton(monsterStatus)
     settingsModal:addButton(npcStatus)
+    settingsModal:addButton(clickActionStatus)
     settingsModal:addButton("Save & Close")
     settingsModal:setCallback(onModalButtonClick)
+end
+
+local function onPlayerClick(playerData)
+    if not playerData or playerClickAction == "None" then
+        return
+    end
+
+    if playerClickAction == "Look" then
+        local creature = Creature(playerData.cid)
+        if creature then
+            local pos = creature:getPosition()
+            if pos then
+                Map.lookAt(pos.x, pos.y, pos.z)
+            end
+        end
+    elseif playerClickAction == "Attack" then
+        if Player.getTargetId() == playerData.cid then
+            Game.attack(0)
+        else
+            Game.attack(playerData.cid)
+        end
+    end
 end
 
 local function cleanupAllHuds()
@@ -240,8 +363,12 @@ end
 
 local function cleanupSectionHuds(hudsTable, headerHudsTable)
     for k, huds in pairs(hudsTable) do
-        if huds.skullHud then huds.skullHud:destroy() end
-        if huds.textHud then huds.textHud:destroy() end
+        if huds.skullHud then
+            huds.skullHud:destroy()
+        end
+        if huds.textHud then
+            huds.textHud:destroy()
+        end
         hudsTable[k] = nil
     end
     for k, h in pairs(headerHudsTable) do
@@ -306,18 +433,27 @@ local function updatePlayerDisplays()
                             if knownPlayerLevels[name:lower()] then
                                 knownPlayerPositions[posKey] = true
                             else
-                                if not unknownPlayersByPosition[posKey] then unknownPlayersByPosition[posKey] = {} end
-                                table.insert(unknownPlayersByPosition[posKey], pos)
+                                if not unknownPlayersByPosition[posKey] then
+                                    unknownPlayersByPosition[posKey] = {}
+                                end
+                                table.insert(unknownPlayersByPosition[posKey], cid)
                             end
                         end
                     end
                 end
             end
         end
-        for posKey, positions in pairs(unknownPlayersByPosition) do
-            if not knownPlayerPositions[posKey] then
-                local posToLookAt = positions[1]
-                Map.lookAt(posToLookAt.x, posToLookAt.y, posToLookAt.z)
+
+        local myPosKey = myPos_list and (myPos_list.x .. "," .. myPos_list.y .. "," .. myPos_list.z) or nil
+        for posKey, cids in pairs(unknownPlayersByPosition) do
+            if not knownPlayerPositions[posKey] and posKey ~= myPosKey then
+                local creatureToLookAt = Creature(cids[1])
+                if creatureToLookAt then
+                    local posToLookAt = creatureToLookAt:getPosition()
+                    if posToLookAt then
+                        Map.lookAt(posToLookAt.x, posToLookAt.y, posToLookAt.z)
+                    end
+                end
                 break
             end
         end
@@ -525,6 +661,9 @@ local function updatePlayerDisplays()
                         if not huds.textHud then
                             huds.textHud = HUD.new(tX, yOff, dTxt, true)
                             huds.textHud:setHorizontalAlignment(Enums.HorizontalAlign.Right)
+                            huds.textHud:setCallback(function()
+                                onPlayerClick(pData)
+                            end)
                         else
                             huds.textHud:setText(dTxt)
                             huds.textHud:setPos(tX, yOff)
@@ -538,8 +677,12 @@ local function updatePlayerDisplays()
             -- Cleanup for removed players or floor headers
             for cid, huds in pairs(activePlayerHuds) do
                 if not pFound_list[cid] then
-                    if huds.skullHud then huds.skullHud:destroy() end
-                    if huds.textHud then huds.textHud:destroy() end
+                    if huds.skullHud then
+                        huds.skullHud:destroy()
+                    end
+                    if huds.textHud then
+                        huds.textHud:destroy()
+                    end
                     activePlayerHuds[cid] = nil
                 end
             end
@@ -549,10 +692,12 @@ local function updatePlayerDisplays()
                     activeHeaderHuds[z] = nil
                 end
             end
-        else -- If totalPlayersDisplayed is 0, destroy all player HUDs
+        else
+            -- If totalPlayersDisplayed is 0, destroy all player HUDs
             cleanupSectionHuds(activePlayerHuds, activeHeaderHuds)
         end
-    else -- If isListEnabled or showPlayers is false, destroy all player HUDs
+    else
+        -- If isListEnabled or showPlayers is false, destroy all player HUDs
         cleanupSectionHuds(activePlayerHuds, activeHeaderHuds)
     end
 
@@ -668,10 +813,12 @@ local function updatePlayerDisplays()
                     activeMonsterHeaderHuds[z] = nil
                 end
             end
-        else -- If totalMonstersDisplayed is 0, destroy all monster HUDs
+        else
+            -- If totalMonstersDisplayed is 0, destroy all monster HUDs
             cleanupSectionHuds(activeMonsterHuds, activeMonsterHeaderHuds)
         end
-    else -- If isListEnabled or showMonsters is false, destroy all monster HUDs
+    else
+        -- If isListEnabled or showMonsters is false, destroy all monster HUDs
         cleanupSectionHuds(activeMonsterHuds, activeMonsterHeaderHuds)
     end
 
@@ -788,24 +935,26 @@ local function updatePlayerDisplays()
                     activeNpcHeaderHuds[z] = nil
                 end
             end
-        else -- If totalNpcsDisplayed is 0, destroy all NPC HUDs
+        else
+            -- If totalNpcsDisplayed is 0, destroy all NPC HUDs
             cleanupSectionHuds(activeNpcHuds, activeNpcHeaderHuds)
         end
-    else -- If isListEnabled or showNpcs is false, destroy all NPC HUDs
+    else
+        -- If isListEnabled or showNpcs is false, destroy all NPC HUDs
         cleanupSectionHuds(activeNpcHuds, activeNpcHeaderHuds)
     end
 
     -- Tracker Section
     local playersFoundThisTick_tracker = {}
     if isTrackerEnabled then
-        local gameWindow = Client.getGameWindowDimensions()
-        if gameWindow and gameWindow.width > 0 then
-            local calibratedX = gameWindow.x - 15
-            local calibratedY = gameWindow.y - 28
-            local tileWidth = gameWindow.width / 15
-            local tileHeight = gameWindow.height / 11
-            local winCenterX = calibratedX + (gameWindow.width / 2)
-            local winCenterY = calibratedY + (gameWindow.height / 2)
+        local gameWindowTracker = Client.getGameWindowDimensions()
+        if gameWindowTracker and gameWindowTracker.width > 0 then
+            local calibratedX = gameWindowTracker.x - 15
+            local calibratedY = gameWindowTracker.y - 28
+            local tileWidth = gameWindowTracker.width / 15
+            local tileHeight = gameWindowTracker.height / 11
+            local winCenterX = calibratedX + (gameWindowTracker.width / 2)
+            local winCenterY = calibratedY + (gameWindowTracker.height / 2)
             local myPos_tracker = Map.getCameraPosition()
             local sameFloorPlayers = Map.getCreatureIds(true, true)
             if sameFloorPlayers then
@@ -849,19 +998,71 @@ local function updatePlayerDisplays()
     end
 end
 
-settingsIcon = HUD.new(ICON_POSITION_X, ICON_POSITION_Y, ICON_ITEM_ID, true)
-if settingsIcon then
-    settingsIcon:setCallback(openSettingsModal)
+local function load()
+    loadSettings()
+
+    settingsIcon = HUD.new(ICON_POSITION_X, ICON_POSITION_Y, ICON_ITEM_ID, true)
+    if settingsIcon then
+        settingsIcon:setCallback(openSettingsModal)
+    end
+
+    Game.registerEvent(Game.Events.TALK, onPlayerTalk)
+    Game.registerEvent(Game.Events.TEXT_MESSAGE, onServerLogMessage)
+    Timer.new("PlayerInfoTimer", updatePlayerDisplays, SCAN_INTERVAL_MS, true)
+
+    -- Initial Load
+    if Client.isConnected() and Client.getWorldName() then
+        lastWorldName = Client.getWorldName()
+        loadCharacterInfo()
+    end
+
+    print(">> Advanced Player Display loaded.")
 end
 
-Game.registerEvent(Game.Events.TALK, onPlayerTalk)
-Game.registerEvent(Game.Events.TEXT_MESSAGE, onServerLogMessage)
-Timer.new("PlayerInfoTimer", updatePlayerDisplays, SCAN_INTERVAL_MS, true)
+local function unload()
+    -- Save data before quitting
+    saveSettings()
+    if lastWorldName then
+        saveCharacterInfo(lastWorldName)
+    end
 
--- Initial Load
-if Client.isConnected() and Client.getWorldName() then
-    lastWorldName = Client.getWorldName()
-    loadCharacterInfo()
+    -- Stop the main timer
+    destroyTimer("PlayerInfoTimer")
+
+    -- Unregister events
+    Game.unregisterEvent(Game.Events.TALK, onPlayerTalk)
+    Game.unregisterEvent(Game.Events.TEXT_MESSAGE, onServerLogMessage)
+
+    -- Destroy main icon
+    if settingsIcon then
+        settingsIcon:destroy()
+        settingsIcon = nil
+    end
+
+    -- Destroy settings modal if open
+    if settingsModal then
+        settingsModal:destroy()
+        settingsModal = nil
+    end
+
+    -- Clean up all dynamic HUDs created by the main loop
+    cleanupAllHuds()
+
+    -- Reset state
+    knownPlayerLevels = {}
+    activePlayerHuds = {}
+    activeHeaderHuds = {}
+    activeTrackerHuds = {}
+    activeMonsterHuds = {}
+    activeMonsterHeaderHuds = {}
+    activeNpcHuds = {}
+    activeNpcHeaderHuds = {}
+    lastWorldName = nil
+
+    print(">> Advanced Player Display unloaded.")
 end
 
-print(">> Advanced Player Display loaded.")
+return {
+    load = load,
+    unload = unload
+}

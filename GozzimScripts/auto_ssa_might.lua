@@ -106,26 +106,48 @@ local function toggleMightRingOnly()
     end, 100, false)
 end
 
--- ################# SCRIPT INITIALIZATION #################
+local function load()
+    -- Create the three HUD icons.
+    combinedIcon = HUD.new(ICON_1_X, ICON_ROW_Y, COMBINED_ICON_ID, true)
+    ssaIcon = HUD.new(ICON_2_X, ICON_ROW_Y, SSA_ONLY_ICON_ID, true)
+    mightRingIcon = HUD.new(ICON_3_X, ICON_ROW_Y, RING_ONLY_ICON_ID, true)
 
--- Create the three HUD icons.
-combinedIcon = HUD.new(ICON_1_X, ICON_ROW_Y, COMBINED_ICON_ID, true)
-ssaIcon = HUD.new(ICON_2_X, ICON_ROW_Y, SSA_ONLY_ICON_ID, true)
-mightRingIcon = HUD.new(ICON_3_X, ICON_ROW_Y, RING_ONLY_ICON_ID, true)
+    if combinedIcon and ssaIcon and mightRingIcon then
+        -- Assign the correct callback function to each icon.
+        combinedIcon:setCallback(toggleCombined)
+        ssaIcon:setCallback(toggleSsaOnly)
+        mightRingIcon:setCallback(toggleMightRingOnly)
 
-if combinedIcon and ssaIcon and mightRingIcon then
-    -- Assign the correct callback function to each icon.
-    combinedIcon:setCallback(toggleCombined)
-    ssaIcon:setCallback(toggleSsaOnly)
-    mightRingIcon:setCallback(toggleMightRingOnly)
+        -- Set the initial appearance of all icons.
+        updateAllIconStates()
 
-    -- Set the initial appearance of all icons.
-    updateAllIconStates()
+        -- Create a single recurring timer to keep all icons synchronized.
+        Timer.new("DefensiveSyncTimer", updateAllIconStates, SYNC_INTERVAL_MS, true)
 
-    -- Create a single recurring timer to keep all icons synchronized.
-    Timer.new("DefensiveSyncTimer", updateAllIconStates, SYNC_INTERVAL_MS, true)
-
-    print(">> Defensive Toggles HUD loaded.")
-else
-    print(">> ERROR: Failed to create Defensive Toggles HUD.")
+        print(">> Defensive Toggles HUD loaded.")
+    else
+        print(">> ERROR: Failed to create Defensive Toggles HUD.")
+    end
 end
+
+local function unload()
+    if combinedIcon then
+        combinedIcon:destroy()
+        combinedIcon = nil
+    end
+    if ssaIcon then
+        ssaIcon:destroy()
+        ssaIcon = nil
+    end
+    if mightRingIcon then
+        mightRingIcon:destroy()
+        mightRingIcon = nil
+    end
+    destroyTimer("DefensiveSyncTimer")
+    print(">> Defensive Toggles HUD unloaded.")
+end
+
+return {
+    load = load,
+    unload = unload
+}

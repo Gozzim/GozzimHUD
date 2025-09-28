@@ -87,23 +87,37 @@ local function castHasteIfNeeded()
     end
 end
 
--- ################# SCRIPT INITIALIZATION #################
+local function load()
+    -- Create the HUD icon using the item ID and position from the config.
+    hasteIcon = HUD.new(ICON_POSITION_X, ICON_POSITION_Y, ICON_ITEM_ID, true)
 
--- Create the HUD icon using the item ID and position from the config.
-hasteIcon = HUD.new(ICON_POSITION_X, ICON_POSITION_Y, ICON_ITEM_ID, true)
+    if hasteIcon then
+        -- Set the icon's initial state to OFF (semi-transparent).
+        hasteIcon:setOpacity(OPACITY_ON)
 
-if hasteIcon then
-    -- Set the icon's initial state to OFF (semi-transparent).
-    hasteIcon:setOpacity(OPACITY_ON)
+        -- Assign our toggleHaste function to be called when the icon is clicked.
+        hasteIcon:setCallback(toggleHaste)
 
-    -- Assign our toggleHaste function to be called when the icon is clicked.
-    hasteIcon:setCallback(toggleHaste)
+        -- Create a recurring timer that calls castHasteIfNeeded.
+        Timer.new("HasteTimer", castHasteIfNeeded, RECAST_INTERVAL_MS, true)
 
-    -- Create a recurring timer that calls castHasteIfNeeded.
-    Timer.new("HasteTimer", castHasteIfNeeded, RECAST_INTERVAL_MS, true)
-
-    -- Print a confirmation message in the Zerobot console.
-    print(">> Haste HUD loaded.")
-else
-    print(">> ERROR: Failed to create Haste Toggle HUD.")
+        -- Print a confirmation message in the Zerobot console.
+        print(">> Haste HUD loaded.")
+    else
+        print(">> ERROR: Failed to create Haste Toggle HUD.")
+    end
 end
+
+local function unload()
+    if hasteIcon then
+        hasteIcon:destroy()
+        hasteIcon = nil
+    end
+    destroyTimer("HasteTimer")
+    print(">> Haste HUD unloaded.")
+end
+
+return {
+    load = load,
+    unload = unload
+}

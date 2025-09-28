@@ -62,24 +62,43 @@ local function updateDisplay()
     end
 end
 
--- ################# SCRIPT INITIALIZATION #################
+local function load()
+    -- Create the HUD elements.
+    fpsHud = HUD.new(FPS_POS_X, FPS_POS_Y, "FPS: ", true)
+    latencyHud = HUD.new(LATENCY_POS_X, LATENCY_POS_Y, "Ping: ", true)
 
--- Create the HUD elements.
-fpsHud = HUD.new(FPS_POS_X, FPS_POS_Y, "FPS: ", true)
-latencyHud = HUD.new(LATENCY_POS_X, LATENCY_POS_Y, "Ping: ", true)
+    if fpsHud and latencyHud then
+        -- Set initial colors.
+        fpsHud:setColor(COLOR_FPS.r, COLOR_FPS.g, COLOR_FPS.b)
+        latencyHud:setColor(COLOR_OKAY.r, COLOR_OKAY.g, COLOR_OKAY.b)
 
-if fpsHud and latencyHud then
-    -- Set initial colors.
-    fpsHud:setColor(COLOR_FPS.r, COLOR_FPS.g, COLOR_FPS.b)
-    latencyHud:setColor(COLOR_OKAY.r, COLOR_OKAY.g, COLOR_OKAY.b)
+        -- Run the update function once immediately to populate the fields.
+        updateDisplay()
 
-    -- Run the update function once immediately to populate the fields.
-    updateDisplay()
+        -- Create a recurring timer that runs the main update loop.
+        Timer.new("InfoDisplayTimer", updateDisplay, UPDATE_INTERVAL_MS, true)
 
-    -- Create a recurring timer that runs the main update loop.
-    Timer.new("InfoDisplayTimer", updateDisplay, UPDATE_INTERVAL_MS, true)
-
-    print(">> FPS & Latency Display script loaded.")
-else
-    print(">> ERROR: Failed to create FPS & Latency HUDs.")
+        print(">> FPS & Latency Display script loaded.")
+    else
+        print(">> ERROR: Failed to create FPS & Latency HUDs.")
+    end
 end
+
+local function unload()
+    if fpsHud then
+        fpsHud:destroy()
+        fpsHud = nil
+    end
+    if latencyHud then
+        latencyHud:destroy()
+        latencyHud = nil
+    end
+    destroyTimer("InfoDisplayTimer")
+    lastLatencyColor = nil
+    print(">> FPS & Latency Display script unloaded.")
+end
+
+return {
+    load = load,
+    unload = unload
+}
