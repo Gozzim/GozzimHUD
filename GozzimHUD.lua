@@ -16,7 +16,7 @@ local ICON_POSITION_Y = gameWindow.height - 42
 local allScripts = {
     { name = "Eat", file = "eat.lua", defaultState = true },
     { name = "Rage", file = "rage.lua", defaultState = false },
-    { name = "Doors", file = "doors.lua", defaultState = true },
+    { name = "Open Doors", file = "doors.lua", defaultState = true },
     { name = "Exiva", file = "exiva.lua", defaultState = true },
     { name = "Oberon", file = "oberon.lua", defaultState = true },
     { name = "Fishing", file = "fishing.lua", defaultState = true },
