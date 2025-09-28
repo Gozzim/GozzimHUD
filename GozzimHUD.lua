@@ -50,9 +50,9 @@ local function getStorageFileName(scriptName)
     local worldName = Client.getWorldName()
     local charName = Player.getName()
 
-    -- Trim and replace spaces
-    worldName = worldName:gsub("^%s*(.-)%s*$", "%1"):gsub("%s", "_")
-    charName = charName:gsub("^%s*(.-)%s*$", "%1"):gsub("%s", "_")
+    -- Trim and replace spaces and colons
+    worldName = worldName:gsub("^%s*(.-)%s*$", "%1"):gsub("%s", "_"):gsub(":", ".")
+    charName = charName:gsub("^%s*(.-)%s*$", "%1"):gsub("%s", "_"):gsub(":", ".")
 
     return string.format("%s_%s_%s.json", worldName, charName, scriptName)
 end
@@ -177,7 +177,7 @@ openSettingsModal = function()
         settingsModal:addButton(buttonText)
     end
 
-    settingsModal:addButton("Close")
+    settingsModal:addButton("Save & Close")
     settingsModal:setCallback(onModalButtonClick)
 end
 

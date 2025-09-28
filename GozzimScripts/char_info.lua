@@ -63,9 +63,9 @@ local function getSettingsStorageFileName()
         return nil
     end
 
-    -- Trim and replace spaces
-    worldName = worldName:gsub("^%s*(.-)%s*$", "%1"):gsub("%s", "_")
-    charName = charName:gsub("^%s*(.-)%s*$", "%1"):gsub("%s", "_")
+    -- Trim and replace spaces and colons
+    worldName = worldName:gsub("^%s*(.-)%s*$", "%1"):gsub("%s", "_"):gsub(":", ".")
+    charName = charName:gsub("^%s*(.-)%s*$", "%1"):gsub("%s", "_"):gsub(":", ".")
 
     return string.format("%s_%s_char_info.json", worldName, charName)
 end
@@ -146,13 +146,13 @@ local function getCharacterInfoPath(worldNameOverride)
     local worldName = worldNameOverride or Client.getWorldName()
 
     if not scriptsDir or not worldName then
-        return nil
+        return nil, nil
     end
 
-    -- Trim and replace spaces
-    worldName = worldName:gsub("^%s*(.-)%s*$", "%1"):gsub("%s", "_")
+    -- Trim and replace spaces and colons
+    local sanitizedWorldName = worldName:gsub("^%s*(.-)%s*$", "%1"):gsub("%s", "_"):gsub(":", ".")
 
-    return string.format("%s/GozzimScripts/Storage/charInfo_%s.json", scriptsDir, worldName)
+    return string.format("%s/GozzimScripts/Storage/charInfo_%s.json", scriptsDir, sanitizedWorldName), sanitizedWorldName
 end
 
 local function saveCharacterInfo(worldNameToSave)
@@ -160,9 +160,9 @@ local function saveCharacterInfo(worldNameToSave)
         return
     end
 
-    local path = getCharacterInfoPath(worldNameToSave)
+    local path, sanitizedWorldName = getCharacterInfoPath(worldNameToSave)
     if not path then
-        print("Could not save character info: Missing path components for world: " .. worldNameToSave)
+        print("Could not save character info: Missing path components for world: " .. (worldNameToSave or ""))
         return
     end
 
@@ -180,11 +180,11 @@ local function saveCharacterInfo(worldNameToSave)
 
     file:write(jsonData)
     file:close()
-    print(">> Character info saved for " .. worldNameToSave)
+    print(">> Character info saved for " .. sanitizedWorldName)
 end
 
 local function loadCharacterInfo()
-    local path = getCharacterInfoPath()
+    local path, sanitizedWorldName = getCharacterInfoPath()
     if not path then
         print("Could not load character info: Not connected or world name is unavailable.")
         knownPlayerLevels = {}
@@ -194,7 +194,7 @@ local function loadCharacterInfo()
     local file = io.open(path, "r")
     if not file then
         knownPlayerLevels = {}
-        print(">> No existing charInfo file found for " .. (Client.getWorldName() or "current world"))
+        print(">> No existing charInfo file found for " .. (sanitizedWorldName or Client.getWorldName() or "current world"))
         return
     end
 
@@ -205,7 +205,7 @@ local function loadCharacterInfo()
         local success, data = pcall(JSON.decode, content)
         if success and type(data) == "table" then
             knownPlayerLevels = data
-            print(">> Character info loaded for " .. Client.getWorldName())
+            print(">> Character info loaded for " .. (sanitizedWorldName or Client.getWorldName()))
         else
             print("Error decoding character info from JSON: " .. tostring(data))
             knownPlayerLevels = {}
