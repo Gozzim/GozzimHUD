@@ -50,6 +50,7 @@ local isAutoLookEnabled = false
 local showPlayers = true
 local showMonsters = true
 local showNpcs = false
+local playerClickAction = "Look"
 local settingsIcon = nil
 local settingsModal = nil
 local lastWorldName = nil
@@ -58,7 +59,9 @@ local lastWorldName = nil
 local function getSettingsStorageFileName()
     local worldName = Client.getWorldName()
     local charName = Player.getName()
-    if not worldName or not charName then return nil end
+    if not worldName or not charName then
+        return nil
+    end
 
     -- Trim and replace spaces
     worldName = worldName:gsub("^%s*(.-)%s*$", "%1"):gsub("%s", "_")
@@ -69,7 +72,9 @@ end
 
 local function saveSettings()
     local fileName = getSettingsStorageFileName()
-    if not fileName then return end
+    if not fileName then
+        return
+    end
 
     local settings = {
         isListEnabled = isListEnabled,
@@ -84,7 +89,8 @@ local function saveSettings()
         isAutoLookEnabled = isAutoLookEnabled,
         showPlayers = showPlayers,
         showMonsters = showMonsters,
-        showNpcs = showNpcs
+        showNpcs = showNpcs,
+        playerClickAction = playerClickAction
     }
 
     local filePath = Engine.getScriptsDirectory() .. "/GozzimScripts/Storage/" .. fileName
@@ -97,14 +103,18 @@ end
 
 local function loadSettings()
     local fileName = getSettingsStorageFileName()
-    if not fileName then return false end
+    if not fileName then
+        return false
+    end
 
     local filePath = Engine.getScriptsDirectory() .. "/GozzimScripts/Storage/" .. fileName
     local file = io.open(filePath, "r")
     if file then
         local content = file:read("*a")
         file:close()
-        if not content or content == "" then return false end
+        if not content or content == "" then
+            return false
+        end
         local success, settings = pcall(JSON.decode, content)
         if success and type(settings) == "table" then
             isListEnabled = settings.isListEnabled ~= false
@@ -120,6 +130,7 @@ local function loadSettings()
             showPlayers = settings.showPlayers ~= false
             showMonsters = settings.showMonsters ~= false
             showNpcs = settings.showNpcs == true
+            playerClickAction = settings.playerClickAction or "Look"
             print(">> Char Info settings loaded.")
             return true -- Settings loaded
         else
@@ -145,7 +156,9 @@ local function getCharacterInfoPath(worldNameOverride)
 end
 
 local function saveCharacterInfo(worldNameToSave)
-    if not worldNameToSave then return end
+    if not worldNameToSave then
+        return
+    end
 
     local path = getCharacterInfoPath(worldNameToSave)
     if not path then
@@ -257,6 +270,12 @@ local function onModalButtonClick(buttonIndex)
     elseif buttonIndex == 14 then
         showNpcs = not showNpcs
     elseif buttonIndex == 15 then
+        if playerClickAction == "Look" then
+            playerClickAction = "Attack"
+        else
+            playerClickAction = "Look"
+        end
+    elseif buttonIndex == 16 then
         saveSettings()
         if lastWorldName then
             saveCharacterInfo(lastWorldName)
@@ -285,6 +304,7 @@ openSettingsModal = function()
     local autoLookStatus = isAutoLookEnabled and 'Auto Look: <font color="#00FF00">ON</font>' or 'Auto Look: <font color="#FF6666">OFF</font>'
     local monsterStatus = showMonsters and 'Monsters: <font color="#00FF00">ON</font>' or 'Monsters: <font color="#FF6666">OFF</font>'
     local npcStatus = showNpcs and 'NPCs: <font color="#00FF00">ON</font>' or 'NPCs: <font color="#FF6666">OFF</font>'
+    local clickActionStatus = "Click: " .. playerClickAction
     local description = string.format("Floors Above: %d | Floors Below: %d", maxFloorsAbove, maxFloorsBelow)
     settingsModal = CustomModalWindow("Player Display Settings", description)
     settingsModal:addButton('Floors Above [-]')
@@ -302,8 +322,31 @@ openSettingsModal = function()
     settingsModal:addButton(playerStatus)
     settingsModal:addButton(monsterStatus)
     settingsModal:addButton(npcStatus)
+    settingsModal:addButton(clickActionStatus)
     settingsModal:addButton("Save & Close")
     settingsModal:setCallback(onModalButtonClick)
+end
+
+local function onPlayerClick(playerData)
+    if not playerData then
+        return
+    end
+
+    if playerClickAction == "Look" then
+        local creature = Creature(playerData.cid)
+        if creature then
+            local pos = creature:getPosition()
+            if pos then
+                Map.lookAt(pos.x, pos.y, pos.z)
+            end
+        end
+    elseif playerClickAction == "Attack" then
+        if Player.getTargetId() == playerData.cid then
+            Game.attack(0)
+        else
+            Game.attack(playerData.cid)
+        end
+    end
 end
 
 local function cleanupAllHuds()
@@ -318,8 +361,12 @@ end
 
 local function cleanupSectionHuds(hudsTable, headerHudsTable)
     for k, huds in pairs(hudsTable) do
-        if huds.skullHud then huds.skullHud:destroy() end
-        if huds.textHud then huds.textHud:destroy() end
+        if huds.skullHud then
+            huds.skullHud:destroy()
+        end
+        if huds.textHud then
+            huds.textHud:destroy()
+        end
         hudsTable[k] = nil
     end
     for k, h in pairs(headerHudsTable) do
@@ -384,7 +431,9 @@ local function updatePlayerDisplays()
                             if knownPlayerLevels[name:lower()] then
                                 knownPlayerPositions[posKey] = true
                             else
-                                if not unknownPlayersByPosition[posKey] then unknownPlayersByPosition[posKey] = {} end
+                                if not unknownPlayersByPosition[posKey] then
+                                    unknownPlayersByPosition[posKey] = {}
+                                end
                                 table.insert(unknownPlayersByPosition[posKey], cid)
                             end
                         end
@@ -610,6 +659,9 @@ local function updatePlayerDisplays()
                         if not huds.textHud then
                             huds.textHud = HUD.new(tX, yOff, dTxt, true)
                             huds.textHud:setHorizontalAlignment(Enums.HorizontalAlign.Right)
+                            huds.textHud:setCallback(function()
+                                onPlayerClick(pData)
+                            end)
                         else
                             huds.textHud:setText(dTxt)
                             huds.textHud:setPos(tX, yOff)
@@ -623,8 +675,12 @@ local function updatePlayerDisplays()
             -- Cleanup for removed players or floor headers
             for cid, huds in pairs(activePlayerHuds) do
                 if not pFound_list[cid] then
-                    if huds.skullHud then huds.skullHud:destroy() end
-                    if huds.textHud then huds.textHud:destroy() end
+                    if huds.skullHud then
+                        huds.skullHud:destroy()
+                    end
+                    if huds.textHud then
+                        huds.textHud:destroy()
+                    end
                     activePlayerHuds[cid] = nil
                 end
             end
@@ -634,10 +690,12 @@ local function updatePlayerDisplays()
                     activeHeaderHuds[z] = nil
                 end
             end
-        else -- If totalPlayersDisplayed is 0, destroy all player HUDs
+        else
+            -- If totalPlayersDisplayed is 0, destroy all player HUDs
             cleanupSectionHuds(activePlayerHuds, activeHeaderHuds)
         end
-    else -- If isListEnabled or showPlayers is false, destroy all player HUDs
+    else
+        -- If isListEnabled or showPlayers is false, destroy all player HUDs
         cleanupSectionHuds(activePlayerHuds, activeHeaderHuds)
     end
 
@@ -753,10 +811,12 @@ local function updatePlayerDisplays()
                     activeMonsterHeaderHuds[z] = nil
                 end
             end
-        else -- If totalMonstersDisplayed is 0, destroy all monster HUDs
+        else
+            -- If totalMonstersDisplayed is 0, destroy all monster HUDs
             cleanupSectionHuds(activeMonsterHuds, activeMonsterHeaderHuds)
         end
-    else -- If isListEnabled or showMonsters is false, destroy all monster HUDs
+    else
+        -- If isListEnabled or showMonsters is false, destroy all monster HUDs
         cleanupSectionHuds(activeMonsterHuds, activeMonsterHeaderHuds)
     end
 
@@ -873,10 +933,12 @@ local function updatePlayerDisplays()
                     activeNpcHeaderHuds[z] = nil
                 end
             end
-        else -- If totalNpcsDisplayed is 0, destroy all NPC HUDs
+        else
+            -- If totalNpcsDisplayed is 0, destroy all NPC HUDs
             cleanupSectionHuds(activeNpcHuds, activeNpcHeaderHuds)
         end
-    else -- If isListEnabled or showNpcs is false, destroy all NPC HUDs
+    else
+        -- If isListEnabled or showNpcs is false, destroy all NPC HUDs
         cleanupSectionHuds(activeNpcHuds, activeNpcHeaderHuds)
     end
 
