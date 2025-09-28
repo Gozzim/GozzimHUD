@@ -385,17 +385,24 @@ local function updatePlayerDisplays()
                                 knownPlayerPositions[posKey] = true
                             else
                                 if not unknownPlayersByPosition[posKey] then unknownPlayersByPosition[posKey] = {} end
-                                table.insert(unknownPlayersByPosition[posKey], pos)
+                                table.insert(unknownPlayersByPosition[posKey], cid)
                             end
                         end
                     end
                 end
             end
         end
-        for posKey, positions in pairs(unknownPlayersByPosition) do
-            if not knownPlayerPositions[posKey] then
-                local posToLookAt = positions[1]
-                Map.lookAt(posToLookAt.x, posToLookAt.y, posToLookAt.z)
+
+        local myPosKey = myPos_list and (myPos_list.x .. "," .. myPos_list.y .. "," .. myPos_list.z) or nil
+        for posKey, cids in pairs(unknownPlayersByPosition) do
+            if not knownPlayerPositions[posKey] and posKey ~= myPosKey then
+                local creatureToLookAt = Creature(cids[1])
+                if creatureToLookAt then
+                    local posToLookAt = creatureToLookAt:getPosition()
+                    if posToLookAt then
+                        Map.lookAt(posToLookAt.x, posToLookAt.y, posToLookAt.z)
+                    end
+                end
                 break
             end
         end
