@@ -272,6 +272,8 @@ local function onModalButtonClick(buttonIndex)
     elseif buttonIndex == 15 then
         if playerClickAction == "Look" then
             playerClickAction = "Attack"
+        elseif playerClickAction == "Attack" then
+            playerClickAction = "None"
         else
             playerClickAction = "Look"
         end
@@ -328,7 +330,7 @@ openSettingsModal = function()
 end
 
 local function onPlayerClick(playerData)
-    if not playerData then
+    if not playerData or playerClickAction == "None" then
         return
     end
 
