@@ -8,6 +8,18 @@ local TRACKER_TEXT_Y_OFFSET = 0
 local SCAN_INTERVAL_MS = 25
 local LIST_SPACING_Y = 20
 local SKULL_ICON_SCALE = 0.5
+
+-- Helper function to capitalize the first letter of each word in a string
+local function capitalizeName(str)
+    if not str then
+        return ''
+    end
+
+    return (str:gsub("(%w)(%w*)", function(first, rest)
+        return first:upper() .. rest:lower()
+    end))
+end
+
 local COLORS = {
     RED_SKULL = { r = 255, g = 50, b = 50 },
     WHITE_SKULL = { r = 255, g = 150, b = 0 },
@@ -625,7 +637,7 @@ local function updatePlayerDisplays()
                         local sId = skullIconMap[pData.skullId]
                         local vS = vocationMap[pData.vocationId] or "?"
                         local lvlS = pData.level and ", " .. pData.level or ""
-                        local dTxt = pData.name .. " (" .. vS .. lvlS .. ")"
+                        local dTxt = capitalizeName(pData.name) .. " (" .. vS .. lvlS .. ")"
                         local tX = sId and (LIST_MARGIN_X - (32 * SKULL_ICON_SCALE) - 5) or LIST_MARGIN_X
                         local clr = COLORS.NORMAL
                         if isColorCodingEnabled then
@@ -778,7 +790,7 @@ local function updatePlayerDisplays()
                     table.sort(sortedMonsterNames)
                     for _, name in ipairs(sortedMonsterNames) do
                         local count = mL[name]
-                        local dTxt = name .. ": " .. count
+                        local dTxt = capitalizeName(name) .. ": " .. count
                         local tX = LIST_MARGIN_X
                         local clr = COLORS.NORMAL
                         local key = name .. "_" .. z
@@ -900,7 +912,7 @@ local function updatePlayerDisplays()
                     end
                     table.sort(sortedNpcNames)
                     for _, name in ipairs(sortedNpcNames) do
-                        local dTxt = name
+                        local dTxt = capitalizeName(name)
                         local tX = LIST_MARGIN_X
                         local clr = COLORS.NORMAL
                         local key = name .. "_" .. z
@@ -924,7 +936,7 @@ local function updatePlayerDisplays()
             end
             -- Cleanup for removed NPCs or floor headers
             for key, huds in pairs(activeNpcHuds) do
-                if not nFound_list[key] then
+                if not mFound_list[key] then
                     huds.textHud:destroy()
                     activeNpcHuds[key] = nil
                 end

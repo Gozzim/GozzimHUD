@@ -103,7 +103,7 @@ loadScript = function(scriptIndex)
     end
 
     local filePath = Engine.getScriptsDirectory() .. "/" .. SCRIPTS_FOLDER .. script.file
-    
+
     local chunk, compileError = loadfile(filePath)
     if not chunk then
         print(string.format("!! ERROR compiling module %s: %s", script.file, tostring(compileError)))
