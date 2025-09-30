@@ -936,7 +936,7 @@ local function updatePlayerDisplays()
             end
             -- Cleanup for removed NPCs or floor headers
             for key, huds in pairs(activeNpcHuds) do
-                if not mFound_list[key] then
+                if not nFound_list[key] then
                     huds.textHud:destroy()
                     activeNpcHuds[key] = nil
                 end
