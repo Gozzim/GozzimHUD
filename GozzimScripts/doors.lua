@@ -28,7 +28,7 @@ local doorsSet = {
     [6260] = true, [5107] = true, [4912] = true, [6251] = true, [5291] = true, [1683] = true, [1696] = true, [1692] = true, [5006] = true, [2179] = true, [5116] = true,
     [11705] = true, [30772] = true, [30774] = true, [6248] = true, [5735] = true, [5732] = true, [5120] = true, [23873] = true, [5736] = true,
     [6264] = true, [5122] = true, [30049] = true, [30042] = true, [5131] = true, [8363] = true, [5293] = true, [1664] = true, [5111] = true, [5098] = true, [22632] = true, [22639] = true,
-    [36547] = true, [1671] = true, [1694] = true
+    [36547] = true, [1671] = true, [1694] = true, [8361] = true, [31570] = true
 }
 
 -- State tracking variables
