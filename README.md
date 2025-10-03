@@ -73,6 +73,7 @@
 - Displays information about players, monsters and NPCs on your screen.
 - The information includes name, level, vocation and floor.
 - Highly configurable by hitting the paper icon next to the settings icon.
+- The Script gets its data from spell casts and talking as well as look information. So Auto-Look is not required.
 - Saves all previously seen player information and your settings.
 
 ### Oberon
