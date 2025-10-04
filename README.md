@@ -17,6 +17,7 @@
 ### <img style="float: left; margin-right: 8px; margin-top: -4px;" src="https://github.com/user-attachments/assets/4d72cc23-c9c6-4de5-890f-43d8a459f6eb"/> Auto Eat
 - Automatically eats food from your inventory when hungry.
 - Accepts Fire Mushroom, Brown Mushroom, Red Mushroom in that order and changes icon depending on available food.
+- Not eating in protection zone.
 
 ### <img style="float: left; margin-right: 8px; margin-top: -7px;" src="https://github.com/user-attachments/assets/45f91167-7bae-440d-b40f-cfdc652b2a9d"/> Auto Haste
 - Automatically casts `Utani Hur` or `Utani Gran Hur` depending on your vocation, always keeping Haste up.
