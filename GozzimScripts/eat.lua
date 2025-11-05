@@ -4,7 +4,7 @@
 
 -- A prioritized list of Item IDs for the food you want to eat.
 -- Example: { 3731, 3725, 3724 } -- Fire Mushroom, Brown Mushroom, Red Mushroom
-local FOOD_ITEM_IDS = { 43892, 3731, 3725, 3724, 3723, 3595, 3586, 3590, 3588 }
+local FOOD_ITEM_IDS = { 43892, 3731, 3725, 3724, 3723, 3732, 3595, 3586, 3590, 3588 }
 
 -- How often the script checks if you are hungry (in milliseconds).
 local EAT_INTERVAL_MS = 1000 -- Check every 1 second
