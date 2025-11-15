@@ -73,30 +73,24 @@ local function findClosestDummy()
     return closestDummy
 end
 
-local function findNextWeapon(weaponList)
+-- Find the next weapon, with an option to ignore a specific ID
+local function findNextWeapon(weaponList, ignoreId)
     if not weaponList then return nil end
 
-    -- Get a fresh snapshot of the entire inventory
     local inventoryItems = Game.getInventoryItems()
-    if not inventoryItems then
-        print(">> DEBUG: Game.getInventoryItems() returned nil")
-        return nil
-    end
+    if not inventoryItems then return nil end
 
-    -- ############ DIAGNOSTIC LOG ############
-    print(">> DEBUG: Inventory Snapshot: " .. JSON.encode(inventoryItems))
-    -- ########################################
-
-    -- Create a map for quick lookup of item counts
     local inventoryMap = {}
     for _, item in ipairs(inventoryItems) do
         inventoryMap[item.id] = (inventoryMap[item.id] or 0) + item.count
     end
 
-    -- Find the first available weapon from the list
     for _, weaponId in ipairs(weaponList) do
-        if inventoryMap[weaponId] and inventoryMap[weaponId] > 0 then
-            return weaponId
+        -- Check if the weapon is not the one to be ignored
+        if weaponId ~= ignoreId then
+            if inventoryMap[weaponId] and inventoryMap[weaponId] > 0 then
+                return weaponId
+            end
         end
     end
 
@@ -134,21 +128,22 @@ local function updateTrainingIcon(weaponId)
         trainingIcon:setItemId(weaponId)
         currentWeaponId = weaponId
     elseif not weaponId and currentWeaponId then
-        -- Set to a default icon if no weapon is found
         trainingIcon:setItemId(WEAPONS.CLUB[1])
         currentWeaponId = nil
     end
 end
 
-performTrainingAction = function()
+-- Accept an optional weapon ID to ignore during the search
+performTrainingAction = function(ignoreId)
     if not isTrainingActive or not Client.isConnected() or not Player.getState(Enums.States.STATE_PIGEON) then
         return
     end
 
     local primaryList, secondaryList = getWeaponListForVocation()
-    local weaponId = findNextWeapon(primaryList)
+    -- Pass the ignoreId to the find function
+    local weaponId = findNextWeapon(primaryList, ignoreId)
     if not weaponId and secondaryList then
-        weaponId = findNextWeapon(secondaryList)
+        weaponId = findNextWeapon(secondaryList, ignoreId)
     end
 
     updateTrainingIcon(weaponId)
@@ -173,9 +168,12 @@ local function onTextMessage(messageData)
 
     if messageData.messageType == Enums.MessageTypes.MESSAGE_EVENT_ADVANCE and messageData.text == WEAPON_DISAPPEARED_MSG then
         print(">> Exercise: Weapon consumed. Finding next one.")
-        -- Create a one-shot timer to perform the action after a short delay.
+        
+        local weaponThatDisappeared = currentWeaponId
+        
+        -- Create a one-shot timer to perform the action, passing the ID to ignore
         Timer.new("TrainingActionTimer", function()
-            performTrainingAction()
+            performTrainingAction(weaponThatDisappeared)
             destroyTimer("TrainingActionTimer")
         end, 1000, true)
     end
