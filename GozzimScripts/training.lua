@@ -1,10 +1,6 @@
--- Weapon Training Script for Zerobot
--- Automatically uses training weapons on dummies based on vocation and skill.
-
--- #################### CONFIGURATION ####################
 -- Icon position on the screen.
 local ICON_POSITION_X = 50
-local ICON_POSITION_Y = 480 -- Positioned next to the fishing icon
+local ICON_POSITION_Y = 480
 
 -- Opacity for the icon when ON vs OFF.
 local OPACITY_ON = 1.0
@@ -12,7 +8,6 @@ local OPACITY_OFF = 0.5
 
 -- The message that indicates a weapon has been consumed.
 local WEAPON_DISAPPEARED_MSG = "Your training weapon has disappeared."
--- ######################################################
 
 -- Weapon and Dummy Definitions
 local WEAPONS = {
@@ -35,21 +30,29 @@ local currentWeaponId = nil
 local performTrainingAction
 
 local function getDistance(pos1, pos2)
-    if not pos1 or not pos2 then return 999 end
+    if not pos1 or not pos2 then
+        return 999
+    end
     return math.max(math.abs(pos1.x - pos2.x), math.abs(pos1.y - pos2.y))
 end
 
 local function findClosestDummy()
     local myPlayer = Creature(Player.getId())
-    if not myPlayer then return nil end
+    if not myPlayer then
+        return nil
+    end
     local playerPos = myPlayer:getPosition()
-    if not playerPos then return nil end
+    if not playerPos then
+        return nil
+    end
 
     local closestDummy = nil
-    local minDistance = 15 -- Max distance to look for dummies
+    local maxDistance = 10
 
     local tiles = Map.getTiles()
-    if not tiles then return nil end
+    if not tiles then
+        return nil
+    end
 
     for _, tile in ipairs(tiles) do
         -- Only consider tiles on the same floor as the player
@@ -58,8 +61,8 @@ local function findClosestDummy()
                 for _, dummyId in ipairs(DUMMY_IDS) do
                     if thing.id == dummyId then
                         local distance = getDistance(playerPos, tile.pos)
-                        if distance < minDistance then
-                            minDistance = distance
+                        if distance < maxDistance then
+                            maxDistance = distance
                             closestDummy = {
                                 id = thing.id,
                                 pos = tile.pos
@@ -75,10 +78,14 @@ end
 
 -- Find the next weapon, with an option to ignore a specific ID
 local function findNextWeapon(weaponList, ignoreId)
-    if not weaponList then return nil end
+    if not weaponList then
+        return nil
+    end
 
     local inventoryItems = Game.getInventoryItems()
-    if not inventoryItems then return nil end
+    if not inventoryItems then
+        return nil
+    end
 
     local inventoryMap = {}
     for _, item in ipairs(inventoryItems) do
@@ -115,15 +122,17 @@ local function getWeaponListForVocation()
             return WEAPONS.AXE
         end
     elseif vocation == Enums.Vocations.SORCERER or vocation == Enums.Vocations.MASTER_SORCERER then
-        return WEAPONS.WAND, WEAPONS.ROD -- Primary, Secondary
+        return WEAPONS.WAND, WEAPONS.ROD
     elseif vocation == Enums.Vocations.DRUID or vocation == Enums.Vocations.ELDER_DRUID then
-        return WEAPONS.ROD, WEAPONS.WAND -- Primary, Secondary
+        return WEAPONS.ROD, WEAPONS.WAND
     end
     return nil
 end
 
 local function updateTrainingIcon(weaponId)
-    if not trainingIcon then return end
+    if not trainingIcon then
+        return
+    end
     if weaponId and weaponId ~= currentWeaponId then
         trainingIcon:setItemId(weaponId)
         currentWeaponId = weaponId
@@ -164,13 +173,15 @@ performTrainingAction = function(ignoreId)
 end
 
 local function onTextMessage(messageData)
-    if not isTrainingActive then return end
+    if not isTrainingActive then
+        return
+    end
 
     if messageData.messageType == Enums.MessageTypes.MESSAGE_EVENT_ADVANCE and messageData.text == WEAPON_DISAPPEARED_MSG then
         print(">> Exercise: Weapon consumed. Finding next one.")
-        
+
         local weaponThatDisappeared = currentWeaponId
-        
+
         -- Create a one-shot timer to perform the action, passing the ID to ignore
         Timer.new("TrainingActionTimer", function()
             performTrainingAction(weaponThatDisappeared)
@@ -184,7 +195,7 @@ local function toggleTraining()
     if isTrainingActive then
         trainingIcon:setOpacity(OPACITY_ON)
         print(">> Exercise ENABLED.")
-        performTrainingAction() -- Immediately try to train
+        performTrainingAction()
     else
         trainingIcon:setOpacity(OPACITY_OFF)
         print(">> Exercise DISABLED.")
