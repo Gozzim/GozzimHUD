@@ -77,6 +77,12 @@
 - The Script gets its data from spell casts and talking as well as look information. So Auto-Look is not required.
 - Saves all previously seen player information and your settings.
 
+### <img style="float: left; margin-right: 8px; margin-top: -8px;" src="https://private-user-images.githubusercontent.com/80704304/514814001-49d382db-7200-41f7-a83e-14579e6aca6c.gif?jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3NjMyNDY3NjYsIm5iZiI6MTc2MzI0NjQ2NiwicGF0aCI6Ii84MDcwNDMwNC81MTQ4MTQwMDEtNDlkMzgyZGItNzIwMC00MWY3LWE4M2UtMTQ1NzllNmFjYTZjLmdpZj9YLUFtei1BbGdvcml0aG09QVdTNC1ITUFDLVNIQTI1NiZYLUFtei1DcmVkZW50aWFsPUFLSUFWQ09EWUxTQTUzUFFLNFpBJTJGMjAyNTExMTUlMkZ1cy1lYXN0LTElMkZzMyUyRmF3czRfcmVxdWVzdCZYLUFtei1EYXRlPTIwMjUxMTE1VDIyNDEwNlomWC1BbXotRXhwaXJlcz0zMDAmWC1BbXotU2lnbmF0dXJlPTI0MzdjMjg3MDMyYTUwNzdkOGNlOTI4Y2ZiMjllOTQ3ZTYxOWI0ZDNiMTcxZjE1OWVhY2Q5YTBmMzdlMzgwMGQmWC1BbXotU2lnbmVkSGVhZGVycz1ob3N0In0.BHqY8hliQ3sJdNrfUZl-9tp45_X_momXEoz9mYTRI1E"/> Exercise
+- Automatically uses exercise weapons on training dummies.
+- Selects the correct weapon based on vocation and skills.
+- Automatically uses the next available weapon when one breaks.
+- Only works in a protection zone.
+
 ### Oberon
 - A helper script for the Oberon boss fight.
 
