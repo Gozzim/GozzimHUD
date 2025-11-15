@@ -30,6 +30,7 @@ local allScripts = {
     { name = "FPS/Ping", file = "fps_latency.lua", defaultState = true },
     { name = "SSA/Might", file = "auto_ssa_might.lua", defaultState = true },
     { name = "Effects", file = "toggle_effects.lua", defaultState = true },
+    { name = "Exercise", file = "training.lua", defaultState = true },
 }
 
 -- Runtime state variables
