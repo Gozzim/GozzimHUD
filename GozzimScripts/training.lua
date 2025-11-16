@@ -6,8 +6,10 @@ local ICON_POSITION_Y = 480
 local OPACITY_ON = 1.0
 local OPACITY_OFF = 0.5
 
--- The message that indicates a weapon has been consumed.
+-- Messages that indicate training should stop.
 local WEAPON_DISAPPEARED_MSG = "Your training weapon has disappeared."
+local POSITION_CHANGED_MSG = "You have changed position. Training has stopped."
+local COOLDOWN_MSG = "This exercise dummy can only be used after a 20 second cooldown."
 
 -- Weapon and Dummy Definitions
 local WEAPONS = {
@@ -28,6 +30,7 @@ local currentWeaponId = nil
 
 -- Forward declaration
 local performTrainingAction
+local toggleTraining
 
 local function getDistance(pos1, pos2)
     if not pos1 or not pos2 then
@@ -158,7 +161,8 @@ performTrainingAction = function(ignoreId)
     updateTrainingIcon(weaponId)
 
     if not weaponId then
-        print(">> Exercise: No training weapons found.")
+        print(">> Exercise: No training weapons found. Disabling script.")
+        toggleTraining()
         return
     end
 
@@ -177,20 +181,28 @@ local function onTextMessage(messageData)
         return
     end
 
-    if messageData.messageType == Enums.MessageTypes.MESSAGE_EVENT_ADVANCE and messageData.text == WEAPON_DISAPPEARED_MSG then
-        print(">> Exercise: Weapon consumed. Finding next one.")
+    if messageData.messageType == Enums.MessageTypes.MESSAGE_EVENT_ADVANCE then
+        if messageData.text == WEAPON_DISAPPEARED_MSG then
+            print(">> Exercise: Weapon consumed. Finding next one.")
 
-        local weaponThatDisappeared = currentWeaponId
+            local weaponThatDisappeared = currentWeaponId
 
-        -- Create a one-shot timer to perform the action, passing the ID to ignore
-        Timer.new("TrainingActionTimer", function()
-            performTrainingAction(weaponThatDisappeared)
-            destroyTimer("TrainingActionTimer")
-        end, 1000, true)
+            -- Create a one-shot timer to perform the action, passing the ID to ignore
+            Timer.new("TrainingActionTimer", function()
+                performTrainingAction(weaponThatDisappeared)
+                destroyTimer("TrainingActionTimer")
+            end, 1000, true)
+        elseif messageData.text == COOLDOWN_MSG then
+            print(">> Exercise: Exercise on cooldown. Disabling script.")
+            toggleTraining()
+        end
+    elseif messageData.messageType == Enums.MessageTypes.MESSAGE_STATUS_SMALL and messageData.text == POSITION_CHANGED_MSG then
+        print(">> Exercise: Position changed. Disabling script.")
+        toggleTraining()
     end
 end
 
-local function toggleTraining()
+toggleTraining = function()
     isTrainingActive = not isTrainingActive
     if isTrainingActive then
         trainingIcon:setOpacity(OPACITY_ON)
