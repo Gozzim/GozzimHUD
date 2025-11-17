@@ -104,6 +104,10 @@ local function findNextWeapon(weaponList, ignoreId)
         end
     end
 
+    if ignoreId and inventoryMap[ignoreId] and inventoryMap[ignoreId] > 0 then
+        return ignoreId
+    end
+
     return nil
 end
 
