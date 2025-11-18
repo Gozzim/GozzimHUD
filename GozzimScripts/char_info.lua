@@ -439,16 +439,22 @@ local function updatePlayerDisplays()
                 if creature:getType() == Enums.CreatureTypes.CREATURETYPE_PLAYER then
                     local name = creature:getName()
                     if name then
-                        local pos = creature:getPosition()
-                        if pos then
-                            local posKey = pos.x .. "," .. pos.y .. "," .. pos.z
-                            if knownPlayerLevels[name:lower()] then
-                                knownPlayerPositions[posKey] = true
-                            else
-                                if not unknownPlayersByPosition[posKey] then
-                                    unknownPlayersByPosition[posKey] = {}
+                        local upperName = name:upper()
+                        -- Exception for GM/GOD/CM
+                        if upperName:sub(1, 2) == "GM" or upperName:sub(1, 3) == "GOD" or upperName:sub(1, 2) == "CM" then
+                            -- Skip this player
+                        else
+                            local pos = creature:getPosition()
+                            if pos then
+                                local posKey = pos.x .. "," .. pos.y .. "," .. pos.z
+                                if knownPlayerLevels[name:lower()] then
+                                    knownPlayerPositions[posKey] = true
+                                else
+                                    if not unknownPlayersByPosition[posKey] then
+                                        unknownPlayersByPosition[posKey] = {}
+                                    end
+                                    table.insert(unknownPlayersByPosition[posKey], cid)
                                 end
-                                table.insert(unknownPlayersByPosition[posKey], cid)
                             end
                         end
                     end
