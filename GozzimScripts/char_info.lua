@@ -64,6 +64,9 @@ local showMonsters = true
 local showNpcs = false
 local playerClickAction = "Look"
 local isStorageEnabled = true
+local isTrackerColorEnabled = true
+local showTrackerLevel = true
+local showTrackerVocation = true
 local settingsIcon = nil
 local mainModal = nil
 local listConfigModal = nil
@@ -106,7 +109,10 @@ local function saveSettings()
         showMonsters = showMonsters,
         showNpcs = showNpcs,
         playerClickAction = playerClickAction,
-        isStorageEnabled = isStorageEnabled
+        isStorageEnabled = isStorageEnabled,
+        isTrackerColorEnabled = isTrackerColorEnabled,
+        showTrackerLevel = showTrackerLevel,
+        showTrackerVocation = showTrackerVocation
     }
 
     local filePath = Engine.getScriptsDirectory() .. "/GozzimScripts/Storage/" .. fileName
@@ -148,6 +154,9 @@ local function loadSettings()
             showNpcs = settings.showNpcs == true
             playerClickAction = settings.playerClickAction or "Look"
             isStorageEnabled = settings.isStorageEnabled ~= false
+            isTrackerColorEnabled = settings.isTrackerColorEnabled ~= false
+            showTrackerLevel = settings.showTrackerLevel ~= false
+            showTrackerVocation = settings.showTrackerVocation ~= false
             print(">> Char Info settings loaded.")
             return true -- Settings loaded
         else
@@ -350,21 +359,23 @@ end
 
 local function onTrackerConfigModalClick(buttonIndex)
     if buttonIndex == 0 then
+        isTrackerColorEnabled = not isTrackerColorEnabled
+    elseif buttonIndex == 1 then
+        showTrackerLevel = not showTrackerLevel
+    elseif buttonIndex == 2 then
+        showTrackerVocation = not showTrackerVocation
+    elseif buttonIndex == 3 then
         saveSettings()
         openSettingsModal()
+        return
     end
+    openTrackerConfigModal()
 end
 
 openSettingsModal = function()
-    if mainModal then
-        mainModal:destroy()
-    end
-    if listConfigModal then
-        listConfigModal:destroy()
-    end
-    if trackerConfigModal then
-        trackerConfigModal:destroy()
-    end
+    if mainModal then mainModal:destroy() end
+    if listConfigModal then listConfigModal:destroy() end
+    if trackerConfigModal then trackerConfigModal:destroy() end
     mainModal, listConfigModal, trackerConfigModal = nil, nil, nil
 
     mainModal = CustomModalWindow("Char Info Settings", "Configure Features")
@@ -396,15 +407,9 @@ openSettingsModal = function()
 end
 
 openListConfigModal = function()
-    if mainModal then
-        mainModal:destroy()
-    end
-    if listConfigModal then
-        listConfigModal:destroy()
-    end
-    if trackerConfigModal then
-        trackerConfigModal:destroy()
-    end
+    if mainModal then mainModal:destroy() end
+    if listConfigModal then listConfigModal:destroy() end
+    if trackerConfigModal then trackerConfigModal:destroy() end
     mainModal, listConfigModal, trackerConfigModal = nil, nil, nil
 
     local description = string.format("Floors Above: %d | Floors Below: %d", maxFloorsAbove, maxFloorsBelow)
@@ -439,18 +444,20 @@ openListConfigModal = function()
 end
 
 openTrackerConfigModal = function()
-    if mainModal then
-        mainModal:destroy()
-    end
-    if listConfigModal then
-        listConfigModal:destroy()
-    end
-    if trackerConfigModal then
-        trackerConfigModal:destroy()
-    end
+    if mainModal then mainModal:destroy() end
+    if listConfigModal then listConfigModal:destroy() end
+    if trackerConfigModal then trackerConfigModal:destroy() end
     mainModal, listConfigModal, trackerConfigModal = nil, nil, nil
 
     trackerConfigModal = CustomModalWindow("Player Tracker Config", "")
+    
+    local colorStatus = isTrackerColorEnabled and 'Colors: <font color="#00FF00">ON</font>' or 'Colors: <font color="#FF6666">OFF</font>'
+    local levelStatus = showTrackerLevel and 'Level: <font color="#00FF00">ON</font>' or 'Level: <font color="#FF6666">OFF</font>'
+    local vocationStatus = showTrackerVocation and 'Vocation: <font color="#00FF00">ON</font>' or 'Vocation: <font color="#FF6666">OFF</font>'
+
+    trackerConfigModal:addButton(colorStatus)
+    trackerConfigModal:addButton(levelStatus)
+    trackerConfigModal:addButton(vocationStatus)
     trackerConfigModal:addButton("Save & Back")
     trackerConfigModal:setCallback(onTrackerConfigModalClick)
 end
@@ -1100,13 +1107,22 @@ local function updatePlayerDisplays()
                             local deltaY = otherPlayerPos.y - myPos_tracker.y
                             if math.abs(deltaX) < 7.5 and math.abs(deltaY) < 5.5 then
                                 playersFoundThisTick_tracker[cid] = true
-                                local screenX = winCenterX + (deltaX * tileWidth) - (tileWidth / 10)
+                                local screenX = winCenterX + (deltaX * tileWidth) - (tileWidth / 8)
                                 local screenY = winCenterY + (deltaY * tileHeight) + TRACKER_TEXT_Y_OFFSET
                                 local vocId = creature:getVocation()
                                 local voc = vocationMap[vocId] or "?"
                                 local lvl = knownPlayerLevels[name:lower()]
-                                local text = lvl and voc .. "\n" .. lvl or voc
-                                local color = VOCATION_COLORS[vocId] or VOCATION_COLORS[Enums.Vocations.NONE]
+                                local text = ""
+                                if showTrackerVocation then
+                                    text = text .. voc
+                                end
+                                if showTrackerLevel and lvl then
+                                    if text ~= "" then
+                                        text = text .. "\n"
+                                    end
+                                    text = text .. lvl
+                                end
+                                local color = isTrackerColorEnabled and (VOCATION_COLORS[vocId] or VOCATION_COLORS[Enums.Vocations.NONE]) or COLORS.NORMAL
                                 if not activeTrackerHuds[cid] then
                                     activeTrackerHuds[cid] = HUD.new(screenX, screenY, text, true)
                                 else
