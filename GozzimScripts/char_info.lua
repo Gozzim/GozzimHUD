@@ -63,6 +63,7 @@ local showPlayers = true
 local showMonsters = true
 local showNpcs = false
 local playerClickAction = "Look"
+local isStorageEnabled = true
 local settingsIcon = nil
 local mainModal = nil
 local listConfigModal = nil
@@ -104,7 +105,8 @@ local function saveSettings()
         showPlayers = showPlayers,
         showMonsters = showMonsters,
         showNpcs = showNpcs,
-        playerClickAction = playerClickAction
+        playerClickAction = playerClickAction,
+        isStorageEnabled = isStorageEnabled
     }
 
     local filePath = Engine.getScriptsDirectory() .. "/GozzimScripts/Storage/" .. fileName
@@ -145,6 +147,7 @@ local function loadSettings()
             showMonsters = settings.showMonsters ~= false
             showNpcs = settings.showNpcs == true
             playerClickAction = settings.playerClickAction or "Look"
+            isStorageEnabled = settings.isStorageEnabled ~= false
             print(">> Char Info settings loaded.")
             return true -- Settings loaded
         else
@@ -170,7 +173,7 @@ local function getCharacterInfoPath(worldNameOverride)
 end
 
 local function saveCharacterInfo(worldNameToSave)
-    if not worldNameToSave then
+    if not isStorageEnabled or not worldNameToSave then
         return
     end
 
@@ -198,6 +201,11 @@ local function saveCharacterInfo(worldNameToSave)
 end
 
 local function loadCharacterInfo()
+    if not isStorageEnabled then
+        knownPlayerLevels = {}
+        return
+    end
+
     local path, sanitizedWorldName = getCharacterInfoPath()
     if not path then
         print("Could not load character info: Not connected or world name is unavailable.")
@@ -269,9 +277,19 @@ local function onMainModalClick(buttonIndex)
     elseif buttonIndex == 7 then
         saveSettings()
     elseif buttonIndex == 8 then
+        -- Persistent Storage (empty function)
+    elseif buttonIndex == 9 then
+        isStorageEnabled = not isStorageEnabled
+        openSettingsModal()
+    elseif buttonIndex == 10 then
+        knownPlayerLevels = {}
+        print(">> Character level data has been reset.")
+    elseif buttonIndex == 11 then
+        saveSettings()
+    elseif buttonIndex == 12 then
         isAutoLookEnabled = not isAutoLookEnabled
         openSettingsModal()
-    elseif buttonIndex == 9 then
+    elseif buttonIndex == 13 then
         saveSettings()
         if lastWorldName then
             saveCharacterInfo(lastWorldName)
@@ -349,21 +367,27 @@ openSettingsModal = function()
     end
     mainModal, listConfigModal, trackerConfigModal = nil, nil, nil
 
-    mainModal = CustomModalWindow("Char Info Settings", "Configure the features.")
+    mainModal = CustomModalWindow("Char Info Settings", "Configure Features")
 
-    local listStatus = isListEnabled and '<font color="#00FF00">ON</font>' or '<font color="#FF6666">OFF</font>'
-    local trackerStatus = isTrackerEnabled and '<font color="#00FF00">ON</font>' or '<font color="#FF6666">OFF</font>'
-    local autoLookStatus = isAutoLookEnabled and '<font color="#00FF00">ON</font>' or '<font color="#FF6666">OFF</font>'
+    local listStatus = isListEnabled and '<font color="#00FF00">Enabled</font>' or '<font color="#FF6666">Disabled</font>'
+    local trackerStatus = isTrackerEnabled and '<font color="#00FF00">Enabled</font>' or '<font color="#FF6666">Disabled</font>'
+    local storageStatus = isStorageEnabled and '<font color="#00FF00">Enabled</font>' or '<font color="#FF6666">Disabled</font>'
+    local autoLookStatus = isAutoLookEnabled and '<font color="#00FF00">On</font>' or '<font color="#FF6666">Off</font>'
 
     mainModal:addButton("Spy List")
     mainModal:addButton(listStatus)
-    mainModal:addButton("Config")
-    mainModal:addButton("Save")
+    mainModal:addButton("Settings")
+    mainModal:addButton("Save Changes")
 
     mainModal:addButton("Player Tracker")
     mainModal:addButton(trackerStatus)
-    mainModal:addButton("Config")
-    mainModal:addButton("Save")
+    mainModal:addButton("Settings")
+    mainModal:addButton("Save Changes")
+
+    mainModal:addButton("Save Levels")
+    mainModal:addButton(storageStatus)
+    mainModal:addButton("Reset Storage")
+    mainModal:addButton("Save Changes")
 
     mainModal:addButton("Auto Look: " .. autoLookStatus)
     mainModal:addButton("Save & Close")
@@ -426,7 +450,7 @@ openTrackerConfigModal = function()
     end
     mainModal, listConfigModal, trackerConfigModal = nil, nil, nil
 
-    trackerConfigModal = CustomModalWindow("Player Tracker Config", "Configure the tracker.")
+    trackerConfigModal = CustomModalWindow("Player Tracker Config", "")
     trackerConfigModal:addButton("Save & Back")
     trackerConfigModal:setCallback(onTrackerConfigModalClick)
 end
