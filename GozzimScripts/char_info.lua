@@ -395,7 +395,7 @@ openSettingsModal = function()
     mainModal:addButton("Settings")
     mainModal:addButton("Save Changes")
 
-    mainModal:addButton("Save Levels")
+    mainModal:addButton("Level Saving")
     mainModal:addButton(storageStatus)
     mainModal:addButton("Reset Storage")
     mainModal:addButton("Save Changes")
