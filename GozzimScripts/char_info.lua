@@ -373,9 +373,15 @@ local function onTrackerConfigModalClick(buttonIndex)
 end
 
 openSettingsModal = function()
-    if mainModal then mainModal:destroy() end
-    if listConfigModal then listConfigModal:destroy() end
-    if trackerConfigModal then trackerConfigModal:destroy() end
+    if mainModal then
+        mainModal:destroy()
+    end
+    if listConfigModal then
+        listConfigModal:destroy()
+    end
+    if trackerConfigModal then
+        trackerConfigModal:destroy()
+    end
     mainModal, listConfigModal, trackerConfigModal = nil, nil, nil
 
     mainModal = CustomModalWindow("Char Info Settings", "Configure Features")
@@ -407,9 +413,15 @@ openSettingsModal = function()
 end
 
 openListConfigModal = function()
-    if mainModal then mainModal:destroy() end
-    if listConfigModal then listConfigModal:destroy() end
-    if trackerConfigModal then trackerConfigModal:destroy() end
+    if mainModal then
+        mainModal:destroy()
+    end
+    if listConfigModal then
+        listConfigModal:destroy()
+    end
+    if trackerConfigModal then
+        trackerConfigModal:destroy()
+    end
     mainModal, listConfigModal, trackerConfigModal = nil, nil, nil
 
     local description = string.format("Floors Above: %d | Floors Below: %d", maxFloorsAbove, maxFloorsBelow)
@@ -444,13 +456,19 @@ openListConfigModal = function()
 end
 
 openTrackerConfigModal = function()
-    if mainModal then mainModal:destroy() end
-    if listConfigModal then listConfigModal:destroy() end
-    if trackerConfigModal then trackerConfigModal:destroy() end
+    if mainModal then
+        mainModal:destroy()
+    end
+    if listConfigModal then
+        listConfigModal:destroy()
+    end
+    if trackerConfigModal then
+        trackerConfigModal:destroy()
+    end
     mainModal, listConfigModal, trackerConfigModal = nil, nil, nil
 
     trackerConfigModal = CustomModalWindow("Player Tracker Config", "")
-    
+
     local colorStatus = isTrackerColorEnabled and 'Colors: <font color="#00FF00">ON</font>' or 'Colors: <font color="#FF6666">OFF</font>'
     local levelStatus = showTrackerLevel and 'Level: <font color="#00FF00">ON</font>' or 'Level: <font color="#FF6666">OFF</font>'
     local vocationStatus = showTrackerVocation and 'Vocation: <font color="#00FF00">ON</font>' or 'Vocation: <font color="#FF6666">OFF</font>'
