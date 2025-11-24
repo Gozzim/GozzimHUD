@@ -112,7 +112,8 @@ local function saveSettings()
         isStorageEnabled = isStorageEnabled,
         isTrackerColorEnabled = isTrackerColorEnabled,
         showTrackerLevel = showTrackerLevel,
-        showTrackerVocation = showTrackerVocation
+        showTrackerVocation = showTrackerVocation,
+        SCAN_INTERVAL_MS = SCAN_INTERVAL_MS
     }
 
     local filePath = Engine.getScriptsDirectory() .. "/GozzimScripts/Storage/" .. fileName
@@ -157,6 +158,7 @@ local function loadSettings()
             isTrackerColorEnabled = settings.isTrackerColorEnabled ~= false
             showTrackerLevel = settings.showTrackerLevel ~= false
             showTrackerVocation = settings.showTrackerVocation ~= false
+            SCAN_INTERVAL_MS = settings.SCAN_INTERVAL_MS or 25
             print(">> Char Info settings loaded.")
             return true -- Settings loaded
         else
@@ -268,37 +270,54 @@ local openTrackerConfigModal
 
 local function onMainModalClick(buttonIndex)
     if buttonIndex == 0 then
-        -- Spy List (empty function)
+        -- General (empty function)
     elseif buttonIndex == 1 then
-        isListEnabled = not isListEnabled
+        isAutoLookEnabled = not isAutoLookEnabled
         openSettingsModal()
     elseif buttonIndex == 2 then
-        openListConfigModal()
+        if SCAN_INTERVAL_MS == 10 then
+            SCAN_INTERVAL_MS = 25
+        elseif SCAN_INTERVAL_MS == 25 then
+            SCAN_INTERVAL_MS = 50
+        elseif SCAN_INTERVAL_MS == 50 then
+            SCAN_INTERVAL_MS = 100
+        else
+            SCAN_INTERVAL_MS = 10
+        end
+        destroyTimer("PlayerInfoTimer")
+        Timer.new("PlayerInfoTimer", updatePlayerDisplays, SCAN_INTERVAL_MS, true)
+        openSettingsModal()
     elseif buttonIndex == 3 then
         saveSettings()
     elseif buttonIndex == 4 then
-        -- Player Tracker (empty function)
+        -- Spy List (empty function)
     elseif buttonIndex == 5 then
-        isTrackerEnabled = not isTrackerEnabled
+        isListEnabled = not isListEnabled
         openSettingsModal()
     elseif buttonIndex == 6 then
-        openTrackerConfigModal()
+        openListConfigModal()
     elseif buttonIndex == 7 then
         saveSettings()
     elseif buttonIndex == 8 then
-        -- Persistent Storage (empty function)
+        -- Player Tracker (empty function)
     elseif buttonIndex == 9 then
-        isStorageEnabled = not isStorageEnabled
+        isTrackerEnabled = not isTrackerEnabled
         openSettingsModal()
     elseif buttonIndex == 10 then
-        knownPlayerLevels = {}
-        print(">> Character level data has been reset.")
+        openTrackerConfigModal()
     elseif buttonIndex == 11 then
         saveSettings()
     elseif buttonIndex == 12 then
-        isAutoLookEnabled = not isAutoLookEnabled
-        openSettingsModal()
+        -- Persistent Storage (empty function)
     elseif buttonIndex == 13 then
+        isStorageEnabled = not isStorageEnabled
+        openSettingsModal()
+    elseif buttonIndex == 14 then
+        knownPlayerLevels = {}
+        print(">> Character level data has been reset.")
+    elseif buttonIndex == 15 then
+        saveSettings()
+    elseif buttonIndex == 16 then
         saveSettings()
         if lastWorldName then
             saveCharacterInfo(lastWorldName)
@@ -390,6 +409,12 @@ openSettingsModal = function()
     local trackerStatus = isTrackerEnabled and '<font color="#00FF00">Enabled</font>' or '<font color="#FF6666">Disabled</font>'
     local storageStatus = isStorageEnabled and '<font color="#00FF00">Enabled</font>' or '<font color="#FF6666">Disabled</font>'
     local autoLookStatus = isAutoLookEnabled and '<font color="#00FF00">On</font>' or '<font color="#FF6666">Off</font>'
+    local scanIntervalStatus = "Scans: " .. SCAN_INTERVAL_MS .. "ms"
+
+    mainModal:addButton("General")
+    mainModal:addButton("Auto Look: " .. autoLookStatus)
+    mainModal:addButton(scanIntervalStatus)
+    mainModal:addButton("Save Changes")
 
     mainModal:addButton("Spy List")
     mainModal:addButton(listStatus)
@@ -406,7 +431,6 @@ openSettingsModal = function()
     mainModal:addButton("Reset Storage")
     mainModal:addButton("Save Changes")
 
-    mainModal:addButton("Auto Look: " .. autoLookStatus)
     mainModal:addButton("Save & Close")
 
     mainModal:setCallback(onMainModalClick)
