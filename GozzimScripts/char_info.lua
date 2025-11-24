@@ -63,8 +63,14 @@ local showPlayers = true
 local showMonsters = true
 local showNpcs = false
 local playerClickAction = "Look"
+local isStorageEnabled = true
+local isTrackerColorEnabled = true
+local showTrackerLevel = true
+local showTrackerVocation = true
 local settingsIcon = nil
-local settingsModal = nil
+local mainModal = nil
+local listConfigModal = nil
+local trackerConfigModal = nil
 local lastWorldName = nil
 
 -- Settings Storage
@@ -102,7 +108,12 @@ local function saveSettings()
         showPlayers = showPlayers,
         showMonsters = showMonsters,
         showNpcs = showNpcs,
-        playerClickAction = playerClickAction
+        playerClickAction = playerClickAction,
+        isStorageEnabled = isStorageEnabled,
+        isTrackerColorEnabled = isTrackerColorEnabled,
+        showTrackerLevel = showTrackerLevel,
+        showTrackerVocation = showTrackerVocation,
+        SCAN_INTERVAL_MS = SCAN_INTERVAL_MS
     }
 
     local filePath = Engine.getScriptsDirectory() .. "/GozzimScripts/Storage/" .. fileName
@@ -143,6 +154,11 @@ local function loadSettings()
             showMonsters = settings.showMonsters ~= false
             showNpcs = settings.showNpcs == true
             playerClickAction = settings.playerClickAction or "Look"
+            isStorageEnabled = settings.isStorageEnabled ~= false
+            isTrackerColorEnabled = settings.isTrackerColorEnabled ~= false
+            showTrackerLevel = settings.showTrackerLevel ~= false
+            showTrackerVocation = settings.showTrackerVocation ~= false
+            SCAN_INTERVAL_MS = settings.SCAN_INTERVAL_MS or 25
             print(">> Char Info settings loaded.")
             return true -- Settings loaded
         else
@@ -168,7 +184,7 @@ local function getCharacterInfoPath(worldNameOverride)
 end
 
 local function saveCharacterInfo(worldNameToSave)
-    if not worldNameToSave then
+    if not isStorageEnabled or not worldNameToSave then
         return
     end
 
@@ -196,6 +212,11 @@ local function saveCharacterInfo(worldNameToSave)
 end
 
 local function loadCharacterInfo()
+    if not isStorageEnabled then
+        knownPlayerLevels = {}
+        return
+    end
+
     local path, sanitizedWorldName = getCharacterInfoPath()
     if not path then
         print("Could not load character info: Not connected or world name is unavailable.")
@@ -244,7 +265,71 @@ local function onServerLogMessage(messageData)
 end
 
 local openSettingsModal
-local function onModalButtonClick(buttonIndex)
+local openListConfigModal
+local openTrackerConfigModal
+
+local function onMainModalClick(buttonIndex)
+    if buttonIndex == 0 then
+        -- General (empty function)
+    elseif buttonIndex == 1 then
+        isAutoLookEnabled = not isAutoLookEnabled
+        openSettingsModal()
+    elseif buttonIndex == 2 then
+        if SCAN_INTERVAL_MS == 10 then
+            SCAN_INTERVAL_MS = 25
+        elseif SCAN_INTERVAL_MS == 25 then
+            SCAN_INTERVAL_MS = 50
+        elseif SCAN_INTERVAL_MS == 50 then
+            SCAN_INTERVAL_MS = 100
+        else
+            SCAN_INTERVAL_MS = 10
+        end
+        destroyTimer("PlayerInfoTimer")
+        Timer.new("PlayerInfoTimer", updatePlayerDisplays, SCAN_INTERVAL_MS, true)
+        openSettingsModal()
+    elseif buttonIndex == 3 then
+        saveSettings()
+    elseif buttonIndex == 4 then
+        -- Spy List (empty function)
+    elseif buttonIndex == 5 then
+        isListEnabled = not isListEnabled
+        openSettingsModal()
+    elseif buttonIndex == 6 then
+        openListConfigModal()
+    elseif buttonIndex == 7 then
+        saveSettings()
+    elseif buttonIndex == 8 then
+        -- Player Tracker (empty function)
+    elseif buttonIndex == 9 then
+        isTrackerEnabled = not isTrackerEnabled
+        openSettingsModal()
+    elseif buttonIndex == 10 then
+        openTrackerConfigModal()
+    elseif buttonIndex == 11 then
+        saveSettings()
+    elseif buttonIndex == 12 then
+        -- Persistent Storage (empty function)
+    elseif buttonIndex == 13 then
+        isStorageEnabled = not isStorageEnabled
+        openSettingsModal()
+    elseif buttonIndex == 14 then
+        knownPlayerLevels = {}
+        print(">> Character level data has been reset.")
+    elseif buttonIndex == 15 then
+        saveSettings()
+    elseif buttonIndex == 16 then
+        saveSettings()
+        if lastWorldName then
+            saveCharacterInfo(lastWorldName)
+        end
+        if mainModal then
+            mainModal:destroy()
+            mainModal = nil
+        end
+    end
+end
+
+local function onListConfigModalClick(buttonIndex)
     if buttonIndex == 0 then
         maxFloorsAbove = math.max(0, maxFloorsAbove - 1)
     elseif buttonIndex == 1 then
@@ -254,19 +339,19 @@ local function onModalButtonClick(buttonIndex)
     elseif buttonIndex == 3 then
         maxFloorsBelow = math.min(7, maxFloorsBelow + 1)
     elseif buttonIndex == 4 then
-        isTrackerEnabled = not isTrackerEnabled
-    elseif buttonIndex == 5 then
-        isListEnabled = not isListEnabled
-    elseif buttonIndex == 6 then
         isColorCodingEnabled = not isColorCodingEnabled
-    elseif buttonIndex == 7 then
-        isAutoLookEnabled = not isAutoLookEnabled
-    elseif buttonIndex == 8 then
+    elseif buttonIndex == 5 then
         showGuildMates = not showGuildMates
-    elseif buttonIndex == 9 then
+    elseif buttonIndex == 6 then
         showPartyMembers = not showPartyMembers
-    elseif buttonIndex == 10 then
+    elseif buttonIndex == 7 then
         isCategorySortEnabled = not isCategorySortEnabled
+    elseif buttonIndex == 8 then
+        showPlayers = not showPlayers
+    elseif buttonIndex == 9 then
+        showMonsters = not showMonsters
+    elseif buttonIndex == 10 then
+        showNpcs = not showNpcs
     elseif buttonIndex == 11 then
         if subSortOrder == "vocation" then
             subSortOrder = "level"
@@ -276,12 +361,6 @@ local function onModalButtonClick(buttonIndex)
             subSortOrder = "vocation"
         end
     elseif buttonIndex == 12 then
-        showPlayers = not showPlayers
-    elseif buttonIndex == 13 then
-        showMonsters = not showMonsters
-    elseif buttonIndex == 14 then
-        showNpcs = not showNpcs
-    elseif buttonIndex == 15 then
         if playerClickAction == "Look" then
             playerClickAction = "Attack"
         elseif playerClickAction == "Attack" then
@@ -289,56 +368,140 @@ local function onModalButtonClick(buttonIndex)
         else
             playerClickAction = "Look"
         end
-    elseif buttonIndex == 16 then
+    elseif buttonIndex == 13 then
         saveSettings()
-        if lastWorldName then
-            saveCharacterInfo(lastWorldName)
-        end
-        if settingsModal then
-            settingsModal:destroy()
-        end
-        settingsModal = nil
+        openSettingsModal()
         return
     end
-    openSettingsModal()
+    openListConfigModal()
+end
+
+local function onTrackerConfigModalClick(buttonIndex)
+    if buttonIndex == 0 then
+        isTrackerColorEnabled = not isTrackerColorEnabled
+    elseif buttonIndex == 1 then
+        showTrackerLevel = not showTrackerLevel
+    elseif buttonIndex == 2 then
+        showTrackerVocation = not showTrackerVocation
+    elseif buttonIndex == 3 then
+        saveSettings()
+        openSettingsModal()
+        return
+    end
+    openTrackerConfigModal()
 end
 
 openSettingsModal = function()
-    if settingsModal then
-        settingsModal:destroy()
+    if mainModal then
+        mainModal:destroy()
     end
-    local playerStatus = showPlayers and 'Players: <font color="#00FF00">ON</font>' or 'Players: <font color="#FF6666">OFF</font>'
-    local listStatus = isListEnabled and 'List: <font color="#00FF00">ON</font>' or 'List: <font color="#FF6666">OFF</font>'
-    local trackerStatus = isTrackerEnabled and 'Tracker: <font color="#00FF00">ON</font>' or 'Tracker: <font color="#FF6666">OFF</font>'
-    local partyStatus = showPartyMembers and 'Party: <font color="#00FF00">ON</font>' or 'Party: <font color="#FF6666">OFF</font>'
-    local guildStatus = showGuildMates and 'Guild: <font color="#00FF00">ON</font>' or 'Guild: <font color="#FF6666">OFF</font>'
-    local sortStatus = "Sort by: " .. subSortOrder:gsub("^%l", string.upper)
-    local categorySortStatus = isCategorySortEnabled and 'Categorize: <font color="#00FF00">ON</font>' or 'Categorize: <font color="#FF6666">OFF</font>'
+    if listConfigModal then
+        listConfigModal:destroy()
+    end
+    if trackerConfigModal then
+        trackerConfigModal:destroy()
+    end
+    mainModal, listConfigModal, trackerConfigModal = nil, nil, nil
+
+    mainModal = CustomModalWindow("Char Info Settings", "Configure Features")
+
+    local listStatus = isListEnabled and '<font color="#00FF00">Enabled</font>' or '<font color="#FF6666">Disabled</font>'
+    local trackerStatus = isTrackerEnabled and '<font color="#00FF00">Enabled</font>' or '<font color="#FF6666">Disabled</font>'
+    local storageStatus = isStorageEnabled and '<font color="#00FF00">Enabled</font>' or '<font color="#FF6666">Disabled</font>'
+    local autoLookStatus = isAutoLookEnabled and '<font color="#00FF00">On</font>' or '<font color="#FF6666">Off</font>'
+    local scanIntervalStatus = "Scans: " .. SCAN_INTERVAL_MS .. "ms"
+
+    mainModal:addButton("General")
+    mainModal:addButton("Auto Look: " .. autoLookStatus)
+    mainModal:addButton(scanIntervalStatus)
+    mainModal:addButton("Save Changes")
+
+    mainModal:addButton("Spy List")
+    mainModal:addButton(listStatus)
+    mainModal:addButton("Settings")
+    mainModal:addButton("Save Changes")
+
+    mainModal:addButton("Player Tracker")
+    mainModal:addButton(trackerStatus)
+    mainModal:addButton("Settings")
+    mainModal:addButton("Save Changes")
+
+    mainModal:addButton("Level Saving")
+    mainModal:addButton(storageStatus)
+    mainModal:addButton("Reset Storage")
+    mainModal:addButton("Save Changes")
+
+    mainModal:addButton("Save & Close")
+
+    mainModal:setCallback(onMainModalClick)
+end
+
+openListConfigModal = function()
+    if mainModal then
+        mainModal:destroy()
+    end
+    if listConfigModal then
+        listConfigModal:destroy()
+    end
+    if trackerConfigModal then
+        trackerConfigModal:destroy()
+    end
+    mainModal, listConfigModal, trackerConfigModal = nil, nil, nil
+
+    local description = string.format("Floors Above: %d | Floors Below: %d", maxFloorsAbove, maxFloorsBelow)
+    listConfigModal = CustomModalWindow("Spy List Config", description)
+
     local colorStatus = isColorCodingEnabled and 'Colors: <font color="#00FF00">ON</font>' or 'Colors: <font color="#FF6666">OFF</font>'
-    local autoLookStatus = isAutoLookEnabled and 'Auto Look: <font color="#00FF00">ON</font>' or 'Auto Look: <font color="#FF6666">OFF</font>'
+    local guildStatus = showGuildMates and 'Guild: <font color="#00FF00">ON</font>' or 'Guild: <font color="#FF6666">OFF</font>'
+    local partyStatus = showPartyMembers and 'Party: <font color="#00FF00">ON</font>' or 'Party: <font color="#FF6666">OFF</font>'
+    local categorySortStatus = isCategorySortEnabled and 'Categorize: <font color="#00FF00">ON</font>' or 'Categorize: <font color="#FF6666">OFF</font>'
+    local playerStatus = showPlayers and 'Players: <font color="#00FF00">ON</font>' or 'Players: <font color="#FF6666">OFF</font>'
     local monsterStatus = showMonsters and 'Monsters: <font color="#00FF00">ON</font>' or 'Monsters: <font color="#FF6666">OFF</font>'
     local npcStatus = showNpcs and 'NPCs: <font color="#00FF00">ON</font>' or 'NPCs: <font color="#FF6666">OFF</font>'
-    local clickActionStatus = "Click: " .. playerClickAction
-    local description = string.format("Floors Above: %d | Floors Below: %d", maxFloorsAbove, maxFloorsBelow)
-    settingsModal = CustomModalWindow("Player Display Settings", description)
-    settingsModal:addButton('Floors Above [-]')
-    settingsModal:addButton('Floors Above [+]')
-    settingsModal:addButton('Floors Below [-]')
-    settingsModal:addButton('Floors Below [+]')
-    settingsModal:addButton(trackerStatus)
-    settingsModal:addButton(listStatus)
-    settingsModal:addButton(colorStatus)
-    settingsModal:addButton(autoLookStatus)
-    settingsModal:addButton(guildStatus)
-    settingsModal:addButton(partyStatus)
-    settingsModal:addButton(categorySortStatus)
-    settingsModal:addButton(sortStatus)
-    settingsModal:addButton(playerStatus)
-    settingsModal:addButton(monsterStatus)
-    settingsModal:addButton(npcStatus)
-    settingsModal:addButton(clickActionStatus)
-    settingsModal:addButton("Save & Close")
-    settingsModal:setCallback(onModalButtonClick)
+    local sortStatus = "Sort By: " .. subSortOrder:gsub("^%l", string.upper)
+    local clickActionStatus = "On Click: " .. playerClickAction
+
+    listConfigModal:addButton("Floors Above [-]")
+    listConfigModal:addButton("Floors Above [+]")
+    listConfigModal:addButton("Floors Below [-]")
+    listConfigModal:addButton("Floors Below [+]")
+    listConfigModal:addButton(colorStatus)
+    listConfigModal:addButton(guildStatus)
+    listConfigModal:addButton(partyStatus)
+    listConfigModal:addButton(categorySortStatus)
+    listConfigModal:addButton(playerStatus)
+    listConfigModal:addButton(monsterStatus)
+    listConfigModal:addButton(npcStatus)
+    listConfigModal:addButton(sortStatus)
+    listConfigModal:addButton(clickActionStatus)
+    listConfigModal:addButton("Save & Back")
+
+    listConfigModal:setCallback(onListConfigModalClick)
+end
+
+openTrackerConfigModal = function()
+    if mainModal then
+        mainModal:destroy()
+    end
+    if listConfigModal then
+        listConfigModal:destroy()
+    end
+    if trackerConfigModal then
+        trackerConfigModal:destroy()
+    end
+    mainModal, listConfigModal, trackerConfigModal = nil, nil, nil
+
+    trackerConfigModal = CustomModalWindow("Player Tracker Config", "")
+
+    local colorStatus = isTrackerColorEnabled and 'Colors: <font color="#00FF00">ON</font>' or 'Colors: <font color="#FF6666">OFF</font>'
+    local levelStatus = showTrackerLevel and 'Level: <font color="#00FF00">ON</font>' or 'Level: <font color="#FF6666">OFF</font>'
+    local vocationStatus = showTrackerVocation and 'Vocation: <font color="#00FF00">ON</font>' or 'Vocation: <font color="#FF6666">OFF</font>'
+
+    trackerConfigModal:addButton(colorStatus)
+    trackerConfigModal:addButton(levelStatus)
+    trackerConfigModal:addButton(vocationStatus)
+    trackerConfigModal:addButton("Save & Back")
+    trackerConfigModal:setCallback(onTrackerConfigModalClick)
 end
 
 local function onPlayerClick(playerData)
@@ -986,13 +1149,22 @@ local function updatePlayerDisplays()
                             local deltaY = otherPlayerPos.y - myPos_tracker.y
                             if math.abs(deltaX) < 7.5 and math.abs(deltaY) < 5.5 then
                                 playersFoundThisTick_tracker[cid] = true
-                                local screenX = winCenterX + (deltaX * tileWidth) - (tileWidth / 10)
+                                local screenX = winCenterX + (deltaX * tileWidth) - (tileWidth / 8)
                                 local screenY = winCenterY + (deltaY * tileHeight) + TRACKER_TEXT_Y_OFFSET
                                 local vocId = creature:getVocation()
                                 local voc = vocationMap[vocId] or "?"
                                 local lvl = knownPlayerLevels[name:lower()]
-                                local text = lvl and voc .. "\n" .. lvl or voc
-                                local color = VOCATION_COLORS[vocId] or VOCATION_COLORS[Enums.Vocations.NONE]
+                                local text = ""
+                                if showTrackerVocation then
+                                    text = text .. voc
+                                end
+                                if showTrackerLevel and lvl then
+                                    if text ~= "" then
+                                        text = text .. "\n"
+                                    end
+                                    text = text .. lvl
+                                end
+                                local color = isTrackerColorEnabled and (VOCATION_COLORS[vocId] or VOCATION_COLORS[Enums.Vocations.NONE]) or COLORS.NORMAL
                                 if not activeTrackerHuds[cid] then
                                     activeTrackerHuds[cid] = HUD.new(screenX, screenY, text, true)
                                 else
@@ -1058,9 +1230,17 @@ local function unload()
     end
 
     -- Destroy settings modal if open
-    if settingsModal then
-        settingsModal:destroy()
-        settingsModal = nil
+    if mainModal then
+        mainModal:destroy()
+        mainModal = nil
+    end
+    if listConfigModal then
+        listConfigModal:destroy()
+        listConfigModal = nil
+    end
+    if trackerConfigModal then
+        trackerConfigModal:destroy()
+        trackerConfigModal = nil
     end
 
     -- Clean up all dynamic HUDs created by the main loop
