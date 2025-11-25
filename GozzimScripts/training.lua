@@ -129,9 +129,23 @@ local function getWeaponListForVocation()
             return WEAPONS.AXE
         end
     elseif vocation == Enums.Vocations.SORCERER or vocation == Enums.Vocations.MASTER_SORCERER then
-        return WEAPONS.WAND, WEAPONS.ROD
+        local combined = {}
+        for _, id in ipairs(WEAPONS.WAND) do
+            table.insert(combined, id)
+        end
+        for _, id in ipairs(WEAPONS.ROD) do
+            table.insert(combined, id)
+        end
+        return combined
     elseif vocation == Enums.Vocations.DRUID or vocation == Enums.Vocations.ELDER_DRUID then
-        return WEAPONS.ROD, WEAPONS.WAND
+        local combined = {}
+        for _, id in ipairs(WEAPONS.ROD) do
+            table.insert(combined, id)
+        end
+        for _, id in ipairs(WEAPONS.WAND) do
+            table.insert(combined, id)
+        end
+        return combined
     end
     return nil
 end
@@ -155,12 +169,8 @@ performTrainingAction = function(ignoreId)
         return
     end
 
-    local primaryList, secondaryList = getWeaponListForVocation()
-    -- Pass the ignoreId to the find function
-    local weaponId = findNextWeapon(primaryList, ignoreId)
-    if not weaponId and secondaryList then
-        weaponId = findNextWeapon(secondaryList, ignoreId)
-    end
+    local weaponList = getWeaponListForVocation()
+    local weaponId = findNextWeapon(weaponList, ignoreId)
 
     updateTrainingIcon(weaponId)
 
@@ -219,8 +229,8 @@ toggleTraining = function()
 end
 
 local function load()
-    local primaryList, _ = getWeaponListForVocation()
-    local initialWeaponId = findNextWeapon(primaryList) or WEAPONS.CLUB[1]
+    local weaponList = getWeaponListForVocation()
+    local initialWeaponId = findNextWeapon(weaponList) or WEAPONS.CLUB[1]
 
     trainingIcon = HUD.new(ICON_POSITION_X, ICON_POSITION_Y, initialWeaponId, true)
     if trainingIcon then
