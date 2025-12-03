@@ -121,13 +121,22 @@ local function getWeaponListForVocation()
         return WEAPONS.BOW
     elseif vocation == Enums.Vocations.KNIGHT or vocation == Enums.Vocations.ELITE_KNIGHT then
         local skills = Player.getSkills()
-        if skills.club >= skills.sword and skills.club >= skills.axe then
-            return WEAPONS.CLUB
-        elseif skills.sword >= skills.club and skills.sword >= skills.axe then
-            return WEAPONS.SWORD
-        else
-            return WEAPONS.AXE
+        local skillOrder = {
+            { name = "CLUB", value = skills.club },
+            { name = "SWORD", value = skills.sword },
+            { name = "AXE", value = skills.axe }
+        }
+        table.sort(skillOrder, function(a, b)
+            return a.value > b.value
+        end)
+
+        local combined = {}
+        for _, skillInfo in ipairs(skillOrder) do
+            for _, id in ipairs(WEAPONS[skillInfo.name]) do
+                table.insert(combined, id)
+            end
         end
+        return combined
     elseif vocation == Enums.Vocations.SORCERER or vocation == Enums.Vocations.MASTER_SORCERER then
         local combined = {}
         for _, id in ipairs(WEAPONS.WAND) do
