@@ -88,8 +88,8 @@ local function findSpotAndCast()
     end
 
     local fishableSpots = {}
-    for scanX = myPos.x - 3, myPos.x + 3 do
-        for scanY = myPos.y - 3, myPos.y + 3 do
+    for scanX = myPos.x - 5, myPos.x + 5 do
+        for scanY = myPos.y - 5, myPos.y + 5 do
             local thingsOnTile = Map.getThings(scanX, scanY, myPos.z)
             if thingsOnTile and #thingsOnTile > 0 then
                 if waterTileIds[thingsOnTile[1].id] then
