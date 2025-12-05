@@ -95,17 +95,16 @@ local function findNextWeapon(weaponList, ignoreId)
         inventoryMap[item.id] = (inventoryMap[item.id] or 0) + item.count
     end
 
+    if ignoreId and inventoryMap[ignoreId] and inventoryMap[ignoreId] > 1 then
+        return ignoreId
+    end
+
     for _, weaponId in ipairs(weaponList) do
-        -- Check if the weapon is not the one to be ignored
         if weaponId ~= ignoreId then
             if inventoryMap[weaponId] and inventoryMap[weaponId] > 0 then
                 return weaponId
             end
         end
-    end
-
-    if ignoreId and inventoryMap[ignoreId] and inventoryMap[ignoreId] > 0 then
-        return ignoreId
     end
 
     return nil
