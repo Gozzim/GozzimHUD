@@ -191,7 +191,7 @@ local function loadController()
     end
 
     -- Load the Char Info script by default
-    local charInfoPath = Engine.getScriptsDirectory() .. "/" .. SCRIPTS_FOLDER .. "char_info.lua"
+    local charInfoPath = Engine.getScriptsDirectory() .. "/" .. SCRIPTS_FOLDER .. "char_info.lua.script"
     local chunk, err = loadfile(charInfoPath)
     if chunk then
         local success, module = pcall(chunk)
@@ -201,7 +201,7 @@ local function loadController()
             print(">> Loaded module: Char Info")
         end
     else
-        print("!! ERROR loading module char_info.lua: " .. tostring(err))
+        print("!! ERROR loading module char_info.lua.script: " .. tostring(err))
     end
 
     if not loadScriptStates() then
