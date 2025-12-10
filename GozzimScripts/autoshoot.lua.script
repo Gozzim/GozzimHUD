@@ -1,4 +1,4 @@
--- Rune Max Toggle HUD for Zerobot (Dynamic Icon)
+-- Rune Max Toggle HUD for Zerobot
 -- Automatically uses the icon of the rune set in the ZeroBot Rune Max configuration.
 
 -- #################### CONFIGURATION ####################
@@ -7,36 +7,127 @@ local ICON_POSITION_X = 50
 local ICON_POSITION_Y = 240
 
 -- How often to check for external changes (in milliseconds).
--- This ensures the icon updates if you change the setting manually in the bot UI.
 local SYNC_INTERVAL_MS = 200
 
 -- Opacity for the icon when ON vs OFF.
 local OPACITY_ON = 1.0
 local OPACITY_OFF = 0.5
+
+-- Cogwheel icon for settings
+local COG_ICON_ID = 9153
 -- ######################################################
 
+-- List of selectable runes
+local AVAILABLE_RUNES = {
+    { name = "Fireball", id = 3189 },
+    { name = "Great Fireball", id = 3191 },
+    { name = "Sudden Death", id = 3155 },
+    { name = "Stone Shower", id = 3175 },
+    { name = "Thunderstorm", id = 3202 },
+    { name = "Avalanche", id = 3161 },
+    { name = "Explosion", id = 3200 },
+    { name = "HMM", id = 3198 },
+    { name = "LMM", id = 3174 },
+    { name = "Holy Missile", id = 3182 },
+    { name = "Icicle", id = 3158 },
+    { name = "Stalagmite", id = 3179 },
+    { name = "Paralyse", id = 3165 },
+    { name = "Light Stone Shower", id = 21351 },
+    { name = "Lightest Missile", id = 21352 }
+}
 
 -- State tracking variables
 local runeMaxIcon = nil
-local currentIconId = 0 -- This will track the item ID currently shown on the HUD.
+local cogIcon = nil
+local runeSelectionModal = nil
+local currentIconId = 0
+
+-- Forward declarations
+local openRuneSelectionModal
+local updateIconState
+
+-- This function is called when a button in the rune selection modal is clicked.
+local function onRuneModalClick(buttonIndex)
+    if not runeSelectionModal then return end
+
+    local availableRunesInInventory = {}
+    local inventoryItems = Game.getInventoryItems()
+    if inventoryItems then
+        local inventoryMap = {}
+        for _, item in ipairs(inventoryItems) do
+            inventoryMap[item.id] = (inventoryMap[item.id] or 0) + item.count
+        end
+
+        for _, rune in ipairs(AVAILABLE_RUNES) do
+            if inventoryMap[rune.id] and inventoryMap[rune.id] > 0 then
+                table.insert(availableRunesInInventory, rune)
+            end
+        end
+    end
+
+    if buttonIndex < #availableRunesInInventory then
+        local selectedRune = availableRunesInInventory[buttonIndex + 1]
+        if selectedRune then
+            Engine.setRuneMaxId(selectedRune.id)
+            print(">> Rune Max set to: " .. selectedRune.name)
+            -- Give the engine a moment to update before refreshing the icon
+            Timer.new("RuneUpdateDelay", updateIconState, 100, false)
+        end
+    end
+
+    -- Close the modal
+    runeSelectionModal:destroy()
+    runeSelectionModal = nil
+end
+
+-- This function opens the modal to select a rune.
+openRuneSelectionModal = function()
+    if runeSelectionModal then
+        runeSelectionModal:destroy()
+    end
+
+    runeSelectionModal = CustomModalWindow("Select Rune", "Choose a rune from your inventory.")
+
+    local inventoryItems = Game.getInventoryItems()
+    if not inventoryItems then
+        runeSelectionModal:addButton("No inventory data!")
+    else
+        local inventoryMap = {}
+        for _, item in ipairs(inventoryItems) do
+            inventoryMap[item.id] = (inventoryMap[item.id] or 0) + item.count
+        end
+
+        local runesFound = 0
+        for _, rune in ipairs(AVAILABLE_RUNES) do
+            if inventoryMap[rune.id] and inventoryMap[rune.id] > 0 then
+                runeSelectionModal:addButton(rune.name)
+                runesFound = runesFound + 1
+            end
+        end
+
+        if runesFound == 0 then
+            runeSelectionModal:addButton("No selectable runes found.")
+        end
+    end
+
+    runeSelectionModal:addButton("Cancel")
+    runeSelectionModal:setCallback(onRuneModalClick)
+end
 
 -- This function now updates both the icon's appearance (item) and its state (opacity).
-local function updateIconState()
+updateIconState = function()
     if not runeMaxIcon then
         return
     end
 
-    -- Get the rune ID currently configured in ZeroBot's Rune Max tool.
     local configuredRuneId = Engine.getRuneMaxId()
 
-    -- If the configured rune is different from our current icon, update the icon.
     if configuredRuneId ~= 0 and configuredRuneId ~= currentIconId then
         runeMaxIcon:setItemId(configuredRuneId)
         currentIconId = configuredRuneId
         print(">> Rune Max icon updated to item ID: " .. configuredRuneId)
     end
 
-    -- Update the icon's opacity based on whether the feature is enabled.
     if Engine.isRuneMaxEnabled() then
         runeMaxIcon:setOpacity(OPACITY_ON)
     else
@@ -44,7 +135,7 @@ local function updateIconState()
     end
 end
 
--- This function is called when the HUD icon is clicked.
+-- This function is called when the main HUD icon is clicked.
 local function toggleRuneMax()
     local isCurrentlyEnabled = Engine.isRuneMaxEnabled()
     Engine.runeMaxEnable(not isCurrentlyEnabled)
@@ -60,23 +151,25 @@ local function toggleRuneMax()
 end
 
 local function load()
-    -- Get the initial rune ID to create the icon for the first time.
     local initialRuneId = Engine.getRuneMaxId()
     if initialRuneId == 0 then
-        -- Default to an SD rune if no rune is configured yet.
         initialRuneId = 3155
         print(">> Rune Max: No rune configured. Defaulting to SD icon.")
     end
     currentIconId = initialRuneId
 
     runeMaxIcon = HUD.new(ICON_POSITION_X, ICON_POSITION_Y, currentIconId, true)
+    cogIcon = HUD.new(ICON_POSITION_X + 13, ICON_POSITION_Y + 18, COG_ICON_ID, true)
 
-    if runeMaxIcon then
+    if runeMaxIcon and cogIcon then
         runeMaxIcon:setCallback(toggleRuneMax)
-        updateIconState() -- Set the initial appearance and state.
+        cogIcon:setCallback(openRuneSelectionModal)
+        cogIcon:setScale(0.6)
+
+        updateIconState()
         Timer.new("RuneMaxSyncTimer", updateIconState, SYNC_INTERVAL_MS, true)
 
-        print(">> Dynamic Rune Max Toggle HUD loaded. Icon will match your configuration.")
+        print(">> Dynamic Rune Max Toggle HUD loaded.")
     else
         print(">> ERROR: Failed to create Dynamic Rune Max Toggle HUD.")
     end
@@ -87,7 +180,16 @@ local function unload()
         runeMaxIcon:destroy()
         runeMaxIcon = nil
     end
+    if cogIcon then
+        cogIcon:destroy()
+        cogIcon = nil
+    end
+    if runeSelectionModal then
+        runeSelectionModal:destroy()
+        runeSelectionModal = nil
+    end
     destroyTimer("RuneMaxSyncTimer")
+    destroyTimer("RuneUpdateDelay")
     print(">> Dynamic Rune Max Toggle HUD unloaded.")
 end
 
