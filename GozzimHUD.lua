@@ -184,6 +184,12 @@ end
 
 -- Main load function for the entire HUD controller.
 local function loadController()
+    if not Player.hasReceivedBasicData() then
+        print(">> Waiting for basic player data...")
+        Timer.new("GozzimHUD_LoadRetry", loadController, 500, false)
+        return
+    end
+
     print(">> GozzimHUD Controller loading...")
     settingsIcon = HUD.new(ICON_POSITION_X, ICON_POSITION_Y, SETTINGS_ICON_ID, true)
     if settingsIcon then
