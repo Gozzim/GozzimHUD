@@ -3,14 +3,6 @@
 -- and will not cast while in a Protection Zone.
 
 -- #################### CONFIGURATION ####################
--- Haste spell for Knights and Paladins
-local DEFAULT_HASTE_SPELL = "utani hur"
-local DEFAULT_MANA_COST = 20
-
--- Haste spell for Sorcerers and Druids
-local STRONG_HASTE_SPELL = "utani gran hur"
-local STRONG_MANA_COST = 100
-
 -- How often the script checks to recast haste (in milliseconds).
 local RECAST_INTERVAL_MS = 100
 
@@ -24,14 +16,179 @@ local ICON_POSITION_Y = 200
 -- Opacity for the icon when ON vs OFF.
 local OPACITY_ON = 1.0  -- Fully visible
 local OPACITY_OFF = 0.5 -- Semi-transparent
+
+-- Cogwheel icon for settings
+local COG_ICON_ID = 9153
 -- ######################################################
 
+-- Available spells per vocation
+local AVAILABLE_SPELLS = {
+    [Enums.Vocations.KNIGHT] = {
+        { words = "utani hur", mana = 20 },
+        { words = "utani tempo hur", mana = 40 }
+    },
+    [Enums.Vocations.SORCERER] = {
+        { words = "utani gran hur", mana = 100 },
+        { words = "utani hur", mana = 20 }
+    },
+    [Enums.Vocations.DRUID] = {
+        { words = "utani gran hur", mana = 100 },
+        { words = "utani hur", mana = 20 }
+    },
+    [Enums.Vocations.PALADIN] = {
+        { words = "utani hur", mana = 20 },
+        { words = "utani tempo hur", mana = 40 }
+    },
+    [Enums.Vocations.MONK] = {
+        { words = "utani hur", mana = 20 },
+        { words = "utani gran hur", mana = 100 }
+    },
+    [Enums.Vocations.NONE] = {
+        { words = "utani hur", mana = 20 }
+    }
+}
 
--- This variable tracks whether the auto-haste is active.
+-- State tracking variables
 local isAutoHasteActive = true
+local isCastInPZ = false
+local selectedSpellIndex = 1
 
--- This will hold our HUD object.
 local hasteIcon = nil
+local cogIcon = nil
+local settingsModal = nil
+
+-- Forward declarations
+local openSettingsModal
+
+local function getSettingsStorageFileName()
+    local worldName = Client.getWorldName()
+    local charName = Player.getName()
+    if not worldName or not charName then
+        return nil
+    end
+
+    -- Trim and replace spaces and colons
+    worldName = worldName:gsub("^%s*(.-)%s*$", "%1"):gsub("%s", "_"):gsub(":", ".")
+    charName = charName:gsub("^%s*(.-)%s*$", "%1"):gsub("%s", "_"):gsub(":", ".")
+
+    return string.format("%s_%s_autohaste.json", worldName, charName)
+end
+
+local function saveSettings()
+    local fileName = getSettingsStorageFileName()
+    if not fileName then
+        return
+    end
+
+    local settings = {
+        isCastInPZ = isCastInPZ,
+        selectedSpellIndex = selectedSpellIndex
+    }
+
+    local filePath = Engine.getScriptsDirectory() .. "/GozzimScripts/Storage/" .. fileName
+    local file = io.open(filePath, "w")
+    if file then
+        file:write(JSON.encode(settings))
+        file:close()
+    end
+end
+
+local function loadSettings()
+    local fileName = getSettingsStorageFileName()
+    if not fileName then
+        return false
+    end
+
+    local filePath = Engine.getScriptsDirectory() .. "/GozzimScripts/Storage/" .. fileName
+    local file = io.open(filePath, "r")
+    if file then
+        local content = file:read("*a")
+        file:close()
+        if not content or content == "" then
+            return false
+        end
+        local success, settings = pcall(JSON.decode, content)
+        if success and type(settings) == "table" then
+            isCastInPZ = settings.isCastInPZ == true
+            selectedSpellIndex = settings.selectedSpellIndex or 1
+            print(">> Auto Haste settings loaded.")
+            return true
+        else
+            print(">> Error loading Auto Haste settings: " .. tostring(settings))
+        end
+    end
+    return false
+end
+
+-- This function is called when a button in the settings modal is clicked.
+local function onSettingsModalClick(buttonIndex)
+    if not settingsModal then return end
+
+    local playerCreature = Creature(Player.getId())
+    local currentVocation = playerCreature and playerCreature:getVocation() or Enums.Vocations.NONE
+    local availableSpells = AVAILABLE_SPELLS[currentVocation]
+
+    if buttonIndex == 1 then -- "<" (Previous Spell)
+        selectedSpellIndex = selectedSpellIndex - 1
+        if selectedSpellIndex < 1 then
+            selectedSpellIndex = #availableSpells
+        end
+        saveSettings()
+        openSettingsModal()
+    elseif buttonIndex == 3 then -- ">" (Next Spell)
+        selectedSpellIndex = selectedSpellIndex + 1
+        if selectedSpellIndex > #availableSpells then
+            selectedSpellIndex = 1
+        end
+        saveSettings()
+        openSettingsModal()
+    elseif buttonIndex == 5 then -- ON/OFF PZ Cast
+        isCastInPZ = not isCastInPZ
+        saveSettings()
+        openSettingsModal()
+    end
+end
+
+-- This function opens the modal to configure auto haste.
+openSettingsModal = function()
+    if settingsModal then
+        settingsModal:destroy()
+    end
+
+    local playerCreature = Creature(Player.getId())
+    local currentVocation = playerCreature and playerCreature:getVocation() or Enums.Vocations.NONE
+    local availableSpells = AVAILABLE_SPELLS[currentVocation]
+
+    -- Ensure selected index is valid for current vocation
+    if selectedSpellIndex < 1 or selectedSpellIndex > #availableSpells then
+        selectedSpellIndex = 1
+    end
+
+    local currentSpell = availableSpells[selectedSpellIndex].words
+
+    settingsModal = CustomModalWindow("Auto Haste Config", "Configure Haste Settings")
+
+    local pzStatus = isCastInPZ and '<font color="#00FF00">ON</font>' or '<font color="#FF6666">OFF</font>'
+
+    settingsModal:addButton("Haste Spell")
+    settingsModal:addButton("<")
+    settingsModal:addButton(currentSpell)
+    settingsModal:addButton(">")
+    settingsModal:addButton("PZ Cast")
+    settingsModal:addButton(pzStatus)
+    
+    settingsModal:addButton("Save & Close")
+    settingsModal:setCallback(function(btnIndex)
+        if btnIndex == 6 then
+            if settingsModal then
+                settingsModal:destroy()
+                settingsModal = nil
+            end
+        else
+            onSettingsModalClick(btnIndex)
+        end
+    end)
+end
 
 -- This function is called when the HUD icon is clicked.
 local function toggleHaste()
@@ -58,21 +215,23 @@ local function castHasteIfNeeded()
 
     -- ## Vocation Check: Get the player's creature object to find the vocation ##
     local playerCreature = Creature(Player.getId())
+    if not playerCreature then return end
+    
     local currentVocation = playerCreature:getVocation()
-
-    local spellToCast = DEFAULT_HASTE_SPELL
-    local manaCostForSpell = DEFAULT_MANA_COST
-
-    -- Set the correct spell based on vocation enum.
-    if currentVocation == Enums.Vocations.SORCERER or currentVocation == Enums.Vocations.DRUID then
-        spellToCast = STRONG_HASTE_SPELL
-        manaCostForSpell = STRONG_MANA_COST
+    local availableSpells = AVAILABLE_SPELLS[currentVocation]
+    
+    -- Ensure selected index is valid for current vocation
+    if selectedSpellIndex < 1 or selectedSpellIndex > #availableSpells then
+        selectedSpellIndex = 1
     end
+
+    local spellToCast = availableSpells[selectedSpellIndex].words
+    local manaCostForSpell = availableSpells[selectedSpellIndex].mana
 
     -- Check all conditions before casting.
     local canCast = true
-    if Player.getState(Enums.States.STATE_PIGEON) then
-        canCast = false -- In a protection zone (indicated by the pigeon state).
+    if not isCastInPZ and Player.getState(Enums.States.STATE_PIGEON) then
+        canCast = false -- In a protection zone (indicated by the pigeon state) and PZ cast is off.
     elseif Player.getState(Enums.States.STATE_HASTE) then
         canCast = false -- Already hasted.
     elseif Player.getMana() < manaCostForSpell then
@@ -88,15 +247,23 @@ local function castHasteIfNeeded()
 end
 
 local function load()
+    if Client.isConnected() then
+        loadSettings()
+    end
+
     -- Create the HUD icon using the item ID and position from the config.
     hasteIcon = HUD.new(ICON_POSITION_X, ICON_POSITION_Y, ICON_ITEM_ID, true)
+    cogIcon = HUD.new(ICON_POSITION_X + 16, ICON_POSITION_Y + 18, COG_ICON_ID, true)
 
-    if hasteIcon then
+    if hasteIcon and cogIcon then
         -- Set the icon's initial state to OFF (semi-transparent).
         hasteIcon:setOpacity(OPACITY_ON)
-
+        
         -- Assign our toggleHaste function to be called when the icon is clicked.
         hasteIcon:setCallback(toggleHaste)
+        
+        cogIcon:setCallback(openSettingsModal)
+        cogIcon:setScale(0.6)
 
         -- Create a recurring timer that calls castHasteIfNeeded.
         Timer.new("HasteTimer", castHasteIfNeeded, RECAST_INTERVAL_MS, true)
@@ -112,6 +279,14 @@ local function unload()
     if hasteIcon then
         hasteIcon:destroy()
         hasteIcon = nil
+    end
+    if cogIcon then
+        cogIcon:destroy()
+        cogIcon = nil
+    end
+    if settingsModal then
+        settingsModal:destroy()
+        settingsModal = nil
     end
     destroyTimer("HasteTimer")
     print(">> Haste HUD unloaded.")
