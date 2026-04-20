@@ -41,7 +41,7 @@ local VOCATION_COLORS = {
 }
 local vocationMap = { [1] = "EK", [2] = "RP", [3] = "MS", [4] = "ED", [5] = "EM", [0] = "None" }
 local skullIconMap = { [1] = 37339, [2] = 37341, [3] = 37337, [4] = 37338, [5] = 37335, [6] = 37340 }
-local knownPlayerLevels = {}
+local knownPlayerInfo = {}
 local activePlayerHuds = {}
 local activeHeaderHuds = {}
 local activeTrackerHuds = {}
@@ -67,6 +67,7 @@ local isStorageEnabled = true
 local isTrackerColorEnabled = true
 local showTrackerLevel = true
 local showTrackerVocation = true
+local showTrackerGuild = false
 local settingsIcon = nil
 local mainModal = nil
 local listConfigModal = nil
@@ -113,6 +114,7 @@ local function saveSettings()
         isTrackerColorEnabled = isTrackerColorEnabled,
         showTrackerLevel = showTrackerLevel,
         showTrackerVocation = showTrackerVocation,
+        showTrackerGuild = showTrackerGuild,
         SCAN_INTERVAL_MS = SCAN_INTERVAL_MS
     }
 
@@ -158,6 +160,7 @@ local function loadSettings()
             isTrackerColorEnabled = settings.isTrackerColorEnabled ~= false
             showTrackerLevel = settings.showTrackerLevel ~= false
             showTrackerVocation = settings.showTrackerVocation ~= false
+            showTrackerGuild = settings.showTrackerGuild == true
             SCAN_INTERVAL_MS = settings.SCAN_INTERVAL_MS or 25
             print(">> Char Info settings loaded.")
             return true -- Settings loaded
@@ -168,7 +171,7 @@ local function loadSettings()
     return false -- No settings file or error
 end
 
--- Character Data Storage (existing, but fixed)
+-- Character Data Storage
 local function getCharacterInfoPath(worldNameOverride)
     local scriptsDir = Engine.getScriptsDirectory()
     local worldName = worldNameOverride or Client.getWorldName()
@@ -194,7 +197,7 @@ local function saveCharacterInfo(worldNameToSave)
         return
     end
 
-    local success, jsonData = pcall(JSON.encode, knownPlayerLevels)
+    local success, jsonData = pcall(JSON.encode, knownPlayerInfo)
     if not success then
         print("Error encoding character info to JSON: " .. tostring(jsonData))
         return
@@ -213,20 +216,20 @@ end
 
 local function loadCharacterInfo()
     if not isStorageEnabled then
-        knownPlayerLevels = {}
+        knownPlayerInfo = {}
         return
     end
 
     local path, sanitizedWorldName = getCharacterInfoPath()
     if not path then
         print("Could not load character info: Not connected or world name is unavailable.")
-        knownPlayerLevels = {}
+        knownPlayerInfo = {}
         return
     end
 
     local file = io.open(path, "r")
     if not file then
-        knownPlayerLevels = {}
+        knownPlayerInfo = {}
         print(">> No existing charInfo file found for " .. (sanitizedWorldName or Client.getWorldName() or "current world"))
         return
     end
@@ -237,20 +240,32 @@ local function loadCharacterInfo()
     if content and #content > 0 then
         local success, data = pcall(JSON.decode, content)
         if success and type(data) == "table" then
-            knownPlayerLevels = data
+            -- Handle backward compatibility (old format was just {name: level})
+            knownPlayerInfo = {}
+            for name, info in pairs(data) do
+                if type(info) == "number" then
+                    knownPlayerInfo[name] = { level = info, guild = nil }
+                else
+                    knownPlayerInfo[name] = info
+                end
+            end
             print(">> Character info loaded for " .. (sanitizedWorldName or Client.getWorldName()))
         else
             print("Error decoding character info from JSON: " .. tostring(data))
-            knownPlayerLevels = {}
+            knownPlayerInfo = {}
         end
     else
-        knownPlayerLevels = {}
+        knownPlayerInfo = {}
     end
 end
 
 local function onPlayerTalk(name, level, mode, text)
     if level > 0 then
-        knownPlayerLevels[name:lower()] = level
+        local lowerName = name:lower()
+        if not knownPlayerInfo[lowerName] then
+            knownPlayerInfo[lowerName] = {}
+        end
+        knownPlayerInfo[lowerName].level = level
     end
 end
 
@@ -259,7 +274,19 @@ local function onServerLogMessage(messageData)
         local name, level = messageData.text:match("You see ([^%(]+) %(Level (%d+)")
         if name and level then
             name = name:gsub("^%s*(.-)%s*$", "%1")
-            knownPlayerLevels[name:lower()] = tonumber(level)
+            local lowerName = name:lower()
+
+            if not knownPlayerInfo[lowerName] then
+                knownPlayerInfo[lowerName] = {}
+            end
+            knownPlayerInfo[lowerName].level = tonumber(level)
+
+            local guild = messageData.text:match("of the ([^%,%.]+)")
+            if guild then
+                knownPlayerInfo[lowerName].guild = guild:gsub("^%s*(.-)%s*$", "%1")
+            else
+                knownPlayerInfo[lowerName].guild = nil
+            end
         end
     end
 end
@@ -313,8 +340,8 @@ local function onMainModalClick(buttonIndex)
         isStorageEnabled = not isStorageEnabled
         openSettingsModal()
     elseif buttonIndex == 14 then
-        knownPlayerLevels = {}
-        print(">> Character level data has been reset.")
+        knownPlayerInfo = {}
+        print(">> Character info data has been reset.")
     elseif buttonIndex == 15 then
         saveSettings()
     elseif buttonIndex == 16 then
@@ -384,6 +411,8 @@ local function onTrackerConfigModalClick(buttonIndex)
     elseif buttonIndex == 2 then
         showTrackerVocation = not showTrackerVocation
     elseif buttonIndex == 3 then
+        showTrackerGuild = not showTrackerGuild
+    elseif buttonIndex == 4 then
         saveSettings()
         openSettingsModal()
         return
@@ -496,10 +525,12 @@ openTrackerConfigModal = function()
     local colorStatus = isTrackerColorEnabled and 'Colors: <font color="#00FF00">ON</font>' or 'Colors: <font color="#FF6666">OFF</font>'
     local levelStatus = showTrackerLevel and 'Level: <font color="#00FF00">ON</font>' or 'Level: <font color="#FF6666">OFF</font>'
     local vocationStatus = showTrackerVocation and 'Vocation: <font color="#00FF00">ON</font>' or 'Vocation: <font color="#FF6666">OFF</font>'
+    local guildStatus = showTrackerGuild and 'Guild: <font color="#00FF00">ON</font>' or 'Guild: <font color="#FF6666">OFF</font>'
 
     trackerConfigModal:addButton(colorStatus)
     trackerConfigModal:addButton(levelStatus)
     trackerConfigModal:addButton(vocationStatus)
+    trackerConfigModal:addButton(guildStatus)
     trackerConfigModal:addButton("Save & Back")
     trackerConfigModal:setCallback(onTrackerConfigModalClick)
 end
@@ -531,7 +562,16 @@ local function cleanupAllHuds()
     cleanupSectionHuds(activeMonsterHuds, activeMonsterHeaderHuds)
     cleanupSectionHuds(activeNpcHuds, activeNpcHeaderHuds)
     for cid, hud in pairs(activeTrackerHuds) do
-        hud:destroy()
+        if type(hud) == "table" then
+            if hud.main then
+                hud.main:destroy()
+            end
+            if hud.guild then
+                hud.guild:destroy()
+            end
+        else
+            hud:destroy()
+        end
         activeTrackerHuds[cid] = nil
     end
 end
@@ -569,7 +609,7 @@ local function updatePlayerDisplays()
         print("Client disconnected. Saving data for " .. lastWorldName)
         saveCharacterInfo(lastWorldName)
         lastWorldName = nil
-        knownPlayerLevels = {}
+        knownPlayerInfo = {}
     end
 
     -- If we are not connected, clean up all HUDs and stop.
@@ -585,7 +625,16 @@ local function updatePlayerDisplays()
     -- Cleanup for tracker HUDs
     if not isTrackerEnabled then
         for c, h in pairs(activeTrackerHuds) do
-            h:destroy()
+            if type(h) == "table" then
+                if h.main then
+                    h.main:destroy()
+                end
+                if h.guild then
+                    h.guild:destroy()
+                end
+            else
+                h:destroy()
+            end
             activeTrackerHuds[c] = nil
         end
     end
@@ -610,7 +659,7 @@ local function updatePlayerDisplays()
                             local pos = creature:getPosition()
                             if pos then
                                 local posKey = pos.x .. "," .. pos.y .. "," .. pos.z
-                                if knownPlayerLevels[name:lower()] then
+                                if knownPlayerInfo[name:lower()] and knownPlayerInfo[name:lower()].level then
                                     knownPlayerPositions[posKey] = true
                                 else
                                     if not unknownPlayersByPosition[posKey] then
@@ -658,7 +707,8 @@ local function updatePlayerDisplays()
                                 local zO = crP.z - myPos_list.z
                                 local sS = (zO == 0) or (zO < 0 and math.abs(zO) <= maxFloorsAbove) or (zO > 0 and zO <= maxFloorsBelow)
                                 if sS then
-                                    local pData = { cid = cid, name = n, level = knownPlayerLevels[n:lower()], vocationId = cr:getVocation(), skullId = cr:getSkull(), partyIconId = cr:getPartyIcon(), guildEmblemId = cr:getGuildEmblem() }
+                                    local info = knownPlayerInfo[n:lower()] or {}
+                                    local pData = { cid = cid, name = n, level = info.level, vocationId = cr:getVocation(), skullId = cr:getSkull(), partyIconId = cr:getPartyIcon(), guildEmblemId = cr:getGuildEmblem() }
                                     local isParty = pData.partyIconId >= Enums.PartyIcons.SHIELD_BLUE and pData.partyIconId <= Enums.PartyIcons.SHIELD_YELLOW_NOSHAREDEXP
                                     local isGuild = pData.guildEmblemId == Enums.GuildEmblem.GUILDEMBLEM_MEMBER or pData.guildEmblemId == Enums.GuildEmblem.GUILDEMBLEM_ALLY
                                     if (not isParty or showPartyMembers) and (not isGuild or showGuildMates) then
@@ -1153,7 +1203,10 @@ local function updatePlayerDisplays()
                                 local screenY = winCenterY + (deltaY * tileHeight) + TRACKER_TEXT_Y_OFFSET
                                 local vocId = creature:getVocation()
                                 local voc = vocationMap[vocId] or "?"
-                                local lvl = knownPlayerLevels[name:lower()]
+                                local info = knownPlayerInfo[name:lower()] or {}
+                                local lvl = info.level
+                                local guild = info.guild
+
                                 local text = ""
                                 if showTrackerVocation then
                                     text = text .. voc
@@ -1164,14 +1217,48 @@ local function updatePlayerDisplays()
                                     end
                                     text = text .. lvl
                                 end
+
                                 local color = isTrackerColorEnabled and (VOCATION_COLORS[vocId] or VOCATION_COLORS[Enums.Vocations.NONE]) or COLORS.NORMAL
+
                                 if not activeTrackerHuds[cid] then
-                                    activeTrackerHuds[cid] = HUD.new(screenX, screenY, text, true)
+                                    activeTrackerHuds[cid] = {}
+                                    activeTrackerHuds[cid].main = HUD.new(screenX, screenY, text, true)
                                 else
-                                    activeTrackerHuds[cid]:setText(text)
-                                    activeTrackerHuds[cid]:setPos(screenX, screenY)
+                                    if type(activeTrackerHuds[cid]) ~= "table" then
+                                        local oldHud = activeTrackerHuds[cid]
+                                        activeTrackerHuds[cid] = { main = oldHud }
+                                    end
+                                    activeTrackerHuds[cid].main:setText(text)
+                                    activeTrackerHuds[cid].main:setPos(screenX, screenY)
                                 end
-                                activeTrackerHuds[cid]:setColor(color.r, color.g, color.b)
+                                activeTrackerHuds[cid].main:setColor(color.r, color.g, color.b)
+
+                                if showTrackerGuild and guild then
+                                    if #guild > 10 then
+                                        guild = string.sub(guild, 1, 8) .. ".."
+                                    end
+
+                                    -- Calculate a slight left offset for the guild text
+                                    -- This depends on the font, but shifting X by a small amount usually works.
+                                    local guildScreenX = screenX - 10
+                                    -- Calculate a slight Y offset to place it below the main text
+                                    -- Number of newlines in main text determines the Y offset
+                                    local newlines = select(2, text:gsub("\n", ""))
+                                    local guildScreenY = screenY + (newlines * 12) + 12
+
+                                    if not activeTrackerHuds[cid].guild then
+                                        activeTrackerHuds[cid].guild = HUD.new(guildScreenX, guildScreenY, guild, true)
+                                    else
+                                        activeTrackerHuds[cid].guild:setText(guild)
+                                        activeTrackerHuds[cid].guild:setPos(guildScreenX, guildScreenY)
+                                    end
+                                    activeTrackerHuds[cid].guild:setColor(color.r, color.g, color.b)
+                                else
+                                    if type(activeTrackerHuds[cid]) == "table" and activeTrackerHuds[cid].guild then
+                                        activeTrackerHuds[cid].guild:destroy()
+                                        activeTrackerHuds[cid].guild = nil
+                                    end
+                                end
                             end
                         end
                     end
@@ -1182,7 +1269,16 @@ local function updatePlayerDisplays()
     -- Cleanup for tracker HUDs
     for cid, hud in pairs(activeTrackerHuds) do
         if not playersFoundThisTick_tracker[cid] then
-            hud:destroy()
+            if type(hud) == "table" then
+                if hud.main then
+                    hud.main:destroy()
+                end
+                if hud.guild then
+                    hud.guild:destroy()
+                end
+            else
+                hud:destroy()
+            end
             activeTrackerHuds[cid] = nil
         end
     end
@@ -1247,7 +1343,7 @@ local function unload()
     cleanupAllHuds()
 
     -- Reset state
-    knownPlayerLevels = {}
+    knownPlayerInfo = {}
     activePlayerHuds = {}
     activeHeaderHuds = {}
     activeTrackerHuds = {}
