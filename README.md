@@ -20,8 +20,9 @@
 - Not eating in protection zone.
 
 ### <img style="float: left; margin-right: 8px; margin-top: -7px;" src="https://github.com/user-attachments/assets/45f91167-7bae-440d-b40f-cfdc652b2a9d"/> Auto Haste
-- Automatically casts `Utani Hur` or `Utani Gran Hur` depending on your vocation, always keeping Haste up.
-- Not casted when in a protection zone.
+- Automatically casts haste spells to always have haste active.
+- Configurable to select a haste spell depending on your vocation.
+- Ability to toggle if casted when in a protection zone.
 
 ### <img style="float: left; margin-right: 8px; margin-top: -7px;" src="https://github.com/user-attachments/assets/81a74ba0-69f0-4375-8a6c-6748ea46765f"/> Keep Target
 - Ensures your character holds the current target, preventing it from being lost.
