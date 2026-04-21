@@ -13,6 +13,9 @@ local ICON_1_X = 10 -- Combined
 local ICON_2_X = 50 -- SSA Only
 local ICON_3_X = 90 -- Ring Only
 
+-- Cogwheel icon for settings
+local COG_ICON_ID = 9153
+
 -- How often to check for external changes (in milliseconds).
 local SYNC_INTERVAL_MS = 200
 
@@ -24,17 +27,239 @@ local OPACITY_OFF = 0.5
 
 -- State tracking variables for the HUD objects
 local combinedIcon, ssaIcon, mightRingIcon = nil, nil, nil
+local ssaCogIcon, mightRingCogIcon = nil, nil
+local ssaModal, mightRingModal = nil, nil
+
+-- Settings state
+local ssaHpPercent = 50
+local ssaHpEnabled = true
+local ssaMpPercent = 50
+local ssaMpEnabled = false
+local ssaConditionLogic = "OR" -- "AND" or "OR"
+
+local mightRingHpPercent = 50
+local mightRingHpEnabled = true
+local mightRingMpPercent = 50
+local mightRingMpEnabled = false
+local mightRingConditionLogic = "OR" -- "AND" or "OR"
+
+-- Forward declarations
+local openSsaConfigModal, openMightRingConfigModal
+
+local function getSettingsStorageFileName()
+    local worldName = Client.getWorldName()
+    local charName = Player.getName()
+    if not worldName or not charName then
+        return nil
+    end
+
+    -- Trim and replace spaces and colons
+    worldName = worldName:gsub("^%s*(.-)%s*$", "%1"):gsub("%s", "_"):gsub(":", ".")
+    charName = charName:gsub("^%s*(.-)%s*$", "%1"):gsub("%s", "_"):gsub(":", ".")
+
+    return string.format("%s_%s_auto_ssa_might.json", worldName, charName)
+end
+
+local function saveSettings()
+    local fileName = getSettingsStorageFileName()
+    if not fileName then
+        return
+    end
+
+    local settings = {
+        ssaHpPercent = ssaHpPercent,
+        ssaHpEnabled = ssaHpEnabled,
+        ssaMpPercent = ssaMpPercent,
+        ssaMpEnabled = ssaMpEnabled,
+        ssaConditionLogic = ssaConditionLogic,
+        mightRingHpPercent = mightRingHpPercent,
+        mightRingHpEnabled = mightRingHpEnabled,
+        mightRingMpPercent = mightRingMpPercent,
+        mightRingMpEnabled = mightRingMpEnabled,
+        mightRingConditionLogic = mightRingConditionLogic
+    }
+
+    local filePath = Engine.getScriptsDirectory() .. "/GozzimScripts/Storage/" .. fileName
+    local file = io.open(filePath, "w")
+    if file then
+        file:write(JSON.encode(settings))
+        file:close()
+    end
+end
+
+local function loadSettings()
+    local fileName = getSettingsStorageFileName()
+    if not fileName then
+        return false
+    end
+
+    local filePath = Engine.getScriptsDirectory() .. "/GozzimScripts/Storage/" .. fileName
+    local file = io.open(filePath, "r")
+    if file then
+        local content = file:read("*a")
+        file:close()
+        if not content or content == "" then
+            return false
+        end
+        local success, settings = pcall(JSON.decode, content)
+        if success and type(settings) == "table" then
+            ssaHpPercent = settings.ssaHpPercent or 50
+            ssaHpEnabled = settings.ssaHpEnabled ~= false
+            ssaMpPercent = settings.ssaMpPercent or 50
+            ssaMpEnabled = settings.ssaMpEnabled == true
+            ssaConditionLogic = settings.ssaConditionLogic or "OR"
+
+            mightRingHpPercent = settings.mightRingHpPercent or 50
+            mightRingHpEnabled = settings.mightRingHpEnabled ~= false
+            mightRingMpPercent = settings.mightRingMpPercent or 50
+            mightRingMpEnabled = settings.mightRingMpEnabled == true
+            mightRingConditionLogic = settings.mightRingConditionLogic or "OR"
+
+            print(">> Auto SSA & Might Ring settings loaded.")
+            return true
+        else
+            print(">> Error loading Auto SSA & Might Ring settings.")
+        end
+    end
+    return false
+end
+
+local function onSsaModalClick(buttonIndex)
+    if buttonIndex == 0 then
+        ssaHpPercent = math.max(0, ssaHpPercent - 5)
+    elseif buttonIndex == 2 then
+        ssaHpPercent = math.min(100, ssaHpPercent + 5)
+    elseif buttonIndex == 3 then
+        ssaHpEnabled = not ssaHpEnabled
+    elseif buttonIndex == 6 then
+        if ssaConditionLogic == "OR" then
+            ssaConditionLogic = "AND"
+        else
+            ssaConditionLogic = "OR"
+        end
+    elseif buttonIndex == 8 then
+        ssaMpPercent = math.max(0, ssaMpPercent - 5)
+    elseif buttonIndex == 10 then
+        ssaMpPercent = math.min(100, ssaMpPercent + 5)
+    elseif buttonIndex == 11 then
+        ssaMpEnabled = not ssaMpEnabled
+    elseif buttonIndex == 12 then
+        saveSettings()
+        if ssaModal then
+            ssaModal:destroy()
+            ssaModal = nil
+        end
+        return
+    end
+    saveSettings()
+    openSsaConfigModal()
+end
+
+local function onMightRingModalClick(buttonIndex)
+    if buttonIndex == 0 then
+        mightRingHpPercent = math.max(0, mightRingHpPercent - 5)
+    elseif buttonIndex == 2 then
+        mightRingHpPercent = math.min(100, mightRingHpPercent + 5)
+    elseif buttonIndex == 3 then
+        mightRingHpEnabled = not mightRingHpEnabled
+    elseif buttonIndex == 6 then
+        if mightRingConditionLogic == "OR" then
+            mightRingConditionLogic = "AND"
+        else
+            mightRingConditionLogic = "OR"
+        end
+    elseif buttonIndex == 8 then
+        mightRingMpPercent = math.max(0, mightRingMpPercent - 5)
+    elseif buttonIndex == 10 then
+        mightRingMpPercent = math.min(100, mightRingMpPercent + 5)
+    elseif buttonIndex == 11 then
+        mightRingMpEnabled = not mightRingMpEnabled
+    elseif buttonIndex == 12 then
+        saveSettings()
+        if mightRingModal then
+            mightRingModal:destroy()
+            mightRingModal = nil
+        end
+        return
+    end
+    saveSettings()
+    openMightRingConfigModal()
+end
+
+openSsaConfigModal = function()
+    if ssaModal then
+        ssaModal:destroy()
+    end
+    if mightRingModal then
+        mightRingModal:destroy()
+    end
+
+    ssaModal = CustomModalWindow("Auto SSA Config", "Configure activation conditions.")
+
+    local hpStatus = ssaHpEnabled and '<font color="#00FF00">ON</font>' or '<font color="#FF6666">OFF</font>'
+    local mpStatus = ssaMpEnabled and '<font color="#00FF00">ON</font>' or '<font color="#FF6666">OFF</font>'
+
+    ssaModal:addButton("<")
+    ssaModal:addButton("HP: " .. ssaHpPercent .. "%")
+    ssaModal:addButton(">")
+    ssaModal:addButton("HP: " .. hpStatus)
+
+    ssaModal:addButton("")
+    ssaModal:addButton("Logic")
+    ssaModal:addButton(ssaConditionLogic)
+    ssaModal:addButton("")
+
+    ssaModal:addButton("<")
+    ssaModal:addButton("MP: " .. ssaMpPercent .. "%")
+    ssaModal:addButton(">")
+    ssaModal:addButton("MP: " .. mpStatus)
+
+    ssaModal:addButton("Save & Close")
+    ssaModal:setCallback(onSsaModalClick)
+end
+
+openMightRingConfigModal = function()
+    if ssaModal then
+        ssaModal:destroy()
+    end
+    if mightRingModal then
+        mightRingModal:destroy()
+    end
+
+    mightRingModal = CustomModalWindow("Auto Might Ring Config", "Configure activation conditions.")
+
+    local hpStatus = mightRingHpEnabled and '<font color="#00FF00">ON</font>' or '<font color="#FF6666">OFF</font>'
+    local mpStatus = mightRingMpEnabled and '<font color="#00FF00">ON</font>' or '<font color="#FF6666">OFF</font>'
+
+    mightRingModal:addButton("<")
+    mightRingModal:addButton("HP: " .. mightRingHpPercent .. "%")
+    mightRingModal:addButton(">")
+    mightRingModal:addButton("HP: " .. hpStatus)
+
+    mightRingModal:addButton("")
+    mightRingModal:addButton("Logic")
+    mightRingModal:addButton(mightRingConditionLogic)
+    mightRingModal:addButton("")
+
+    mightRingModal:addButton("<")
+    mightRingModal:addButton("MP: " .. mightRingMpPercent .. "%")
+    mightRingModal:addButton(">")
+    mightRingModal:addButton("MP: " .. mpStatus)
+
+    mightRingModal:addButton("Save & Close")
+    mightRingModal:setCallback(onMightRingModalClick)
+end
 
 -- This single function updates the appearance of all three icons.
 local function updateAllIconStates()
     if not combinedIcon then
         return
-    end -- Check if icons have been created
+    end
 
     local isSsaEnabled = Engine.isAutoSSAEnabled()
     local isMightRingEnabled = Engine.isAutoMightRingEnabled()
 
-    -- Update Combined Icon: On only if BOTH are enabled.
+    -- Update Combined Icon
     if isSsaEnabled and isMightRingEnabled then
         combinedIcon:setOpacity(OPACITY_ON)
     else
@@ -56,11 +281,9 @@ local function updateAllIconStates()
     end
 end
 
--- Toggle function for the COMBINED icon.
 local function toggleCombined()
     local isSsaEnabled = Engine.isAutoSSAEnabled()
     local isMightRingEnabled = Engine.isAutoMightRingEnabled()
-    -- if they aren't both on, turn them both on. If they are both on, turn them both off.
     local newState = not (isSsaEnabled and isMightRingEnabled)
 
     Engine.autoSSAEnable(newState)
@@ -76,7 +299,6 @@ local function toggleCombined()
     end, 100, false)
 end
 
--- Toggle function for the SSA ONLY icon.
 local function toggleSsaOnly()
     local isCurrentlyEnabled = Engine.isAutoSSAEnabled()
     Engine.autoSSAEnable(not isCurrentlyEnabled)
@@ -91,7 +313,6 @@ local function toggleSsaOnly()
     end, 100, false)
 end
 
--- Toggle function for the RING ONLY icon.
 local function toggleMightRingOnly()
     local isCurrentlyEnabled = Engine.isAutoMightRingEnabled()
     Engine.autoMightRingEnable(not isCurrentlyEnabled)
@@ -106,44 +327,251 @@ local function toggleMightRingOnly()
     end, 100, false)
 end
 
+local function conditionCheckLoop()
+    if not Client.isConnected() then
+        return
+    end
+
+    local currentHpPercent = Player.getHealthPercent()
+    local currentMpPercent = Player.getManaPercent()
+
+    -- Check SSA Conditions
+    if Engine.isAutoSSAEnabled() then
+        local hpConditionMet = ssaHpEnabled and currentHpPercent <= ssaHpPercent
+        local mpConditionMet = ssaMpEnabled and currentMpPercent <= ssaMpPercent
+
+        local shouldHaveSsa = false
+        if ssaConditionLogic == "OR" then
+            shouldHaveSsa = hpConditionMet or mpConditionMet
+        else
+            -- AND
+            shouldHaveSsa = (not ssaHpEnabled or hpConditionMet) and (not ssaMpEnabled or mpConditionMet)
+            -- If both are disabled, AND logic means never equip
+            if not ssaHpEnabled and not ssaMpEnabled then
+                shouldHaveSsa = false
+            end
+        end
+
+        -- The actual equipping logic is handled by ZeroBot's engine when enabled.
+        -- This script just toggles the engine feature based on our conditions.
+        -- However, since the user expects these conditions to dictate *when* it equips,
+        -- we need to toggle the engine feature dynamically.
+
+        -- If conditions met, ensure engine feature is on.
+        -- If conditions NOT met, we should theoretically turn it off, but that conflicts with the user's manual toggle.
+        -- A better approach for "Auto SSA based on HP/MP" is to implement the equipping logic here
+        -- instead of relying on the Engine's Auto SSA. 
+
+        -- For now, given the constraints and existing code, we will assume the user wants
+        -- the Engine's Auto SSA to be the main driver, and these conditions are perhaps
+        -- for a custom implementation we would write. 
+        -- Since the prompt asks to "configure at how many Health Points and/or Mana Points, we want each to activate",
+        -- we MUST implement the equipping logic here and override the engine's behavior or
+        -- use the engine's behavior and just toggle it on/off.
+
+        -- Let's implement the logic to toggle the engine feature based on conditions.
+        -- BUT, if the user manually toggles it OFF, we should respect that.
+        -- This means our manual toggles set a "master" state, and our loop controls the "engine" state.
+    end
+end
+
+-- We need a revised approach for the loop. 
+-- The user toggles our "master" state via the icons.
+-- The loop checks the "master" state and the HP/MP conditions.
+-- If master state is ON AND conditions are met, it enables the Engine's Auto SSA.
+-- If master state is OFF OR conditions are NOT met, it disables the Engine's Auto SSA.
+
+-- Let's introduce master state variables.
+local masterSsaActive = false
+local masterRingActive = false
+
+local function updateEngineStates()
+    if not Client.isConnected() then
+        return
+    end
+
+    local currentHpPercent = Player.getHealthPercent()
+    local currentMpPercent = Player.getManaPercent()
+
+    -- SSA Logic
+    local shouldEnableEngineSsa = false
+    if masterSsaActive then
+        local hpConditionMet = not ssaHpEnabled or currentHpPercent <= ssaHpPercent
+        local mpConditionMet = not ssaMpEnabled or currentMpPercent <= ssaMpPercent
+
+        if not ssaHpEnabled and not ssaMpEnabled then
+            -- If both disabled but master is active, just leave it on.
+            shouldEnableEngineSsa = true
+        elseif ssaConditionLogic == "OR" then
+            shouldEnableEngineSsa = (ssaHpEnabled and currentHpPercent <= ssaHpPercent) or (ssaMpEnabled and currentMpPercent <= ssaMpPercent)
+        else
+            -- AND
+            shouldEnableEngineSsa = hpConditionMet and mpConditionMet
+        end
+    end
+
+    if Engine.isAutoSSAEnabled() ~= shouldEnableEngineSsa then
+        Engine.autoSSAEnable(shouldEnableEngineSsa)
+    end
+
+    -- Might Ring Logic
+    local shouldEnableEngineRing = false
+    if masterRingActive then
+        local hpConditionMet = not mightRingHpEnabled or currentHpPercent <= mightRingHpPercent
+        local mpConditionMet = not mightRingMpEnabled or currentMpPercent <= mightRingMpPercent
+
+        if not mightRingHpEnabled and not mightRingMpEnabled then
+            shouldEnableEngineRing = true
+        elseif mightRingConditionLogic == "OR" then
+            shouldEnableEngineRing = (mightRingHpEnabled and currentHpPercent <= mightRingHpPercent) or (mightRingMpEnabled and currentMpPercent <= mightRingMpPercent)
+        else
+            -- AND
+            shouldEnableEngineRing = hpConditionMet and mpConditionMet
+        end
+    end
+
+    if Engine.isAutoMightRingEnabled() ~= shouldEnableEngineRing then
+        Engine.autoMightRingEnable(shouldEnableEngineRing)
+    end
+end
+
+-- We need to redefine the toggle functions to control the MASTER state, not the engine directly.
+local function toggleCombinedMaster()
+    local newState = not (masterSsaActive and masterRingActive)
+    masterSsaActive = newState
+    masterRingActive = newState
+    updateEngineStates() -- Apply immediately
+    updateAllIconStates()
+    if newState then
+        print(">> Master Auto SSA & Might Ring ENABLED.")
+    else
+        print(">> Master Auto SSA & Might Ring DISABLED.")
+    end
+end
+
+local function toggleSsaMaster()
+    masterSsaActive = not masterSsaActive
+    updateEngineStates()
+    updateAllIconStates()
+    if masterSsaActive then
+        print(">> Master Auto SSA ENABLED.")
+    else
+        print(">> Master Auto SSA DISABLED.")
+    end
+end
+
+local function toggleRingMaster()
+    masterRingActive = not masterRingActive
+    updateEngineStates()
+    updateAllIconStates()
+    if masterRingActive then
+        print(">> Master Auto Might Ring ENABLED.")
+    else
+        print(">> Master Auto Might Ring DISABLED.")
+    end
+end
+
+-- We must also redefine updateAllIconStates to reflect the MASTER state.
+local function updateAllIconStatesMaster()
+    if not combinedIcon then
+        return
+    end
+
+    if masterSsaActive and masterRingActive then
+        combinedIcon:setOpacity(OPACITY_ON)
+    else
+        combinedIcon:setOpacity(OPACITY_OFF)
+    end
+
+    if masterSsaActive then
+        ssaIcon:setOpacity(OPACITY_ON)
+    else
+        ssaIcon:setOpacity(OPACITY_OFF)
+    end
+
+    if masterRingActive then
+        mightRingIcon:setOpacity(OPACITY_ON)
+    else
+        mightRingIcon:setOpacity(OPACITY_OFF)
+    end
+end
+
 local function load()
-    -- Create the three HUD icons.
+    if Client.isConnected() then
+        loadSettings()
+    end
+
+    -- Initialize master states based on current engine states to avoid sudden changes on reload
+    masterSsaActive = Engine.isAutoSSAEnabled()
+    masterRingActive = Engine.isAutoMightRingEnabled()
+
     combinedIcon = HUD.new(ICON_1_X, ICON_ROW_Y, COMBINED_ICON_ID, true)
     ssaIcon = HUD.new(ICON_2_X, ICON_ROW_Y, SSA_ONLY_ICON_ID, true)
+    ssaCogIcon = HUD.new(ICON_2_X + 18, ICON_ROW_Y + 18, COG_ICON_ID, true)
     mightRingIcon = HUD.new(ICON_3_X, ICON_ROW_Y, RING_ONLY_ICON_ID, true)
+    mightRingCogIcon = HUD.new(ICON_3_X + 16, ICON_ROW_Y + 16, COG_ICON_ID, true)
 
-    if combinedIcon and ssaIcon and mightRingIcon then
-        -- Assign the correct callback function to each icon.
-        combinedIcon:setCallback(toggleCombined)
-        ssaIcon:setCallback(toggleSsaOnly)
-        mightRingIcon:setCallback(toggleMightRingOnly)
+    if combinedIcon and ssaIcon and mightRingIcon and ssaCogIcon and mightRingCogIcon then
+        combinedIcon:setCallback(toggleCombinedMaster)
+        ssaIcon:setCallback(toggleSsaMaster)
+        ssaCogIcon:setCallback(openSsaConfigModal)
+        ssaCogIcon:setScale(0.6)
 
-        -- Set the initial appearance of all icons.
-        updateAllIconStates()
+        mightRingIcon:setCallback(toggleRingMaster)
+        mightRingCogIcon:setCallback(openMightRingConfigModal)
+        mightRingCogIcon:setScale(0.6)
 
-        -- Create a single recurring timer to keep all icons synchronized.
-        Timer.new("DefensiveSyncTimer", updateAllIconStates, SYNC_INTERVAL_MS, true)
+        updateAllIconStatesMaster()
 
-        print(">> Defensive Toggles HUD loaded.")
+        -- Timer to constantly evaluate conditions and set engine state
+        Timer.new("DefensiveConditionTimer", updateEngineStates, 100, true)
+
+        -- We still need to sync icons in case master state changes via another script? Unlikely, but safe.
+        Timer.new("DefensiveIconSyncTimer", updateAllIconStatesMaster, SYNC_INTERVAL_MS, true)
+
+        print(">> Defensive Toggles HUD loaded with conditions.")
     else
         print(">> ERROR: Failed to create Defensive Toggles HUD.")
     end
 end
 
 local function unload()
+    saveSettings()
     if combinedIcon then
-        combinedIcon:destroy()
+        combinedIcon:destroy();
         combinedIcon = nil
     end
     if ssaIcon then
-        ssaIcon:destroy()
+        ssaIcon:destroy();
         ssaIcon = nil
     end
+    if ssaCogIcon then
+        ssaCogIcon:destroy();
+        ssaCogIcon = nil
+    end
     if mightRingIcon then
-        mightRingIcon:destroy()
+        mightRingIcon:destroy();
         mightRingIcon = nil
     end
-    destroyTimer("DefensiveSyncTimer")
+    if mightRingCogIcon then
+        mightRingCogIcon:destroy();
+        mightRingCogIcon = nil
+    end
+    if ssaModal then
+        ssaModal:destroy();
+        ssaModal = nil
+    end
+    if mightRingModal then
+        mightRingModal:destroy();
+        mightRingModal = nil
+    end
+    destroyTimer("DefensiveConditionTimer")
+    destroyTimer("DefensiveIconSyncTimer")
+
+    -- Ensure engine state matches master state upon unload just in case
+    Engine.autoSSAEnable(masterSsaActive)
+    Engine.autoMightRingEnable(masterRingActive)
+
     print(">> Defensive Toggles HUD unloaded.")
 end
 
