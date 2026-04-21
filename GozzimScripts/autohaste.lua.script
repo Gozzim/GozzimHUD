@@ -10,7 +10,7 @@ local RECAST_INTERVAL_MS = 100
 local ICON_ITEM_ID = 3079
 
 -- Position of the icon on the screen.
-local ICON_POSITION_X = 10
+local ICON_POSITION_X = 50
 local ICON_POSITION_Y = 200
 
 -- Opacity for the icon when ON vs OFF.

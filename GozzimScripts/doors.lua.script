@@ -7,7 +7,7 @@ local ICON_ITEM_ID = 12305
 
 -- Position of the icon on the screen.
 local ICON_POSITION_X = 10
-local ICON_POSITION_Y = 120
+local ICON_POSITION_Y = 200
 
 -- How often the polling loop checks your movement (in milliseconds).
 local POLLING_RATE_MS = 50
