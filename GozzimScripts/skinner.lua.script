@@ -10,8 +10,8 @@ local OBSIDIAN_KNIFE_ID = 5908
 local BLESSED_STAKE_ID = 5942
 
 -- Position of the icon on the screen.
-local ICON_POSITION_X = 10
-local ICON_POSITION_Y = 400
+local ICON_POSITION_X = 50
+local ICON_POSITION_Y = 360
 
 -- Cooldown in milliseconds after a kill before scanning for corpses.
 -- This gives the game time to render the corpse and prevents spam.
