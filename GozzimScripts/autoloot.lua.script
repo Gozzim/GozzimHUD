@@ -7,7 +7,7 @@ local ICON_ITEM_ID = 23721
 
 -- Position of the icon on the screen.
 local ICON_POSITION_X = 10
-local ICON_POSITION_Y = 360
+local ICON_POSITION_Y = 400
 
 -- Cooldown in milliseconds to prevent spamming the loot command for a single kill.
 local LOOT_COOLDOWN_MS = 500
