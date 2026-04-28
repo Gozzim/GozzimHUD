@@ -152,7 +152,7 @@ local openSettingsModal
 local function onModalButtonClick(buttonIndex)
     if buttonIndex == 0 then
         _G.GozzimHUD_ShowSettingsIcon = not _G.GozzimHUD_ShowSettingsIcon
-        
+
         -- Reload active scripts that use settings icons so they update
         for i, script in ipairs(allScripts) do
             if script.isLoaded and (script.name == "Autoshoot" or script.name == "Haste" or script.name == "SSA/Might") then
@@ -160,7 +160,7 @@ local function onModalButtonClick(buttonIndex)
                 loadScript(i)
             end
         end
-        
+
         openSettingsModal()
         return
     elseif buttonIndex == #allScripts + 1 then
