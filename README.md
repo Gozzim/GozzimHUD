@@ -6,10 +6,13 @@
 ## Installation
 1. Put the `GozzimHUD.lua` script and `GozzimScripts` folder in your ZeroBot-Scripts folder, usually located at `~/Documents/ZeroBot/Scripts`.
 2. In ZeroBot, go to the `Scripting` tab and load the `GozzimHUD.lua` script.
-3. Use the Config Icon <img style="vertical-align: middle; align-content: center" src="https://github.com/user-attachments/assets/bbb1b45a-633e-4447-b706-e6110a86c648"> in the bottom left to enable or disable the scripts you want.
+3. Use the Config Icon <img style="vertical-align: middle; align-content: center" src="https://github.com/user-attachments/assets/46bd6e08-8f7b-4f03-b932-4a5118d7e33e"> in the bottom left to enable or disable the scripts you want.
 4. Hit `Save & Exit` to save your settings for the character you are logged into.
 
 ## Features
+
+### <img style="float: left; margin-right: 8px; margin-top: -7px;" src="https://github.com/user-attachments/assets/bbb1b45a-633e-4447-b706-e6110a86c648"/> Toggle Settings
+- Toggles all Config Icons On/Off
 
 ### <img style="float: left; margin-right: 8px; margin-top: -7px;" src="https://github.com/user-attachments/assets/407075f4-b785-478f-896d-3eb360159656"/> Auto Open Doors
 - Automatically opens doors as you approach them.
