@@ -42,7 +42,7 @@ local settingsModal = nil
 local charInfoModule = nil
 
 -- Initialize runtime state for each script
-for i, script in ipairs(allScripts) do
+for _, script in ipairs(allScripts) do
     script.module = nil
     script.isLoaded = false
 end
@@ -150,7 +150,7 @@ local openSettingsModal
 
 -- Callback for modal button clicks.
 local function onModalButtonClick(buttonIndex)
-    if buttonIndex == #allScripts then
+    if buttonIndex == 0 then
         _G.GozzimHUD_ShowSettingsIcon = not _G.GozzimHUD_ShowSettingsIcon
         
         -- Reload active scripts that use settings icons so they update
@@ -172,7 +172,7 @@ local function onModalButtonClick(buttonIndex)
         return
     end
 
-    local scriptIndex = buttonIndex + 1
+    local scriptIndex = buttonIndex
     local script = allScripts[scriptIndex]
     if script.isLoaded then
         unloadScript(scriptIndex)
@@ -191,14 +191,15 @@ openSettingsModal = function()
 
     settingsModal = CustomModalWindow("GozzimHUD Scripts", "Toggle scripts on or off.")
 
-    for i, script in ipairs(allScripts) do
+    local iconStatus = _G.GozzimHUD_ShowSettingsIcon and '<font color="#00FF00">ON</font>' or '<font color="#FF6666">OFF</font>'
+    settingsModal:addButton("ConfigIcons: " .. iconStatus)
+
+    for _, script in ipairs(allScripts) do
         local status = script.isLoaded and '<font color="#00FF00">ON</font>' or '<font color="#FF6666">OFF</font>'
         local buttonText = string.format("%s: %s", script.name, status)
         settingsModal:addButton(buttonText)
     end
 
-    local iconStatus = _G.GozzimHUD_ShowSettingsIcon and '<font color="#00FF00">ON</font>' or '<font color="#FF6666">OFF</font>'
-    settingsModal:addButton("Settings Icons: " .. iconStatus)
     settingsModal:addButton("Save & Close")
     settingsModal:setCallback(onModalButtonClick)
 end
