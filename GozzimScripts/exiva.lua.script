@@ -50,6 +50,17 @@ local settingsModal
 local openSettingsModal
 local exivaLoop
 
+-- Helper function to capitalize the first letter of each word in a string
+local function capitalizeName(str)
+    if not str then
+        return ''
+    end
+
+    return (str:gsub("(%w)(%w*)", function(first, rest)
+        return first:upper() .. rest:lower()
+    end))
+end
+
 local function getSettingsStorageFileName()
     local worldName = Client.getWorldName()
     local charName = Player.getName()
@@ -263,7 +274,11 @@ exivaLoop = function()
 
     -- Update the target display HUD text.
     if targetDisplayHud then
-        targetDisplayHud:setText(currentTargetName or "No Target")
+        if currentTargetName then
+            targetDisplayHud:setText(capitalizeName(currentTargetName))
+        else
+            targetDisplayHud:setText("No Target")
+        end
     end
 
     -- The rest of the logic only runs if the script is toggled on.
