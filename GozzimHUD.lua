@@ -4,16 +4,22 @@
 local SCRIPTS_FOLDER = "GozzimScripts/"
 local STORAGE_FOLDER = "GozzimScripts/Storage/"
 
--- Item ID for the main settings icon.
-local SETTINGS_ICON_ID = 9153
+-- Item IDs for the HUD icons
+local CONFIG_TOGGLE_ICON_ID = 9153
+local SETTINGS_ICON_ID = 9654
 
--- Position of the main settings icon on the screen.
+-- Position of the icons on the screen.
 local gameWindow = Client.getGameWindowDimensions()
 local ICON_POSITION_X = 10
 local ICON_POSITION_Y = gameWindow.height - 42
+local SPACING = 40
 
--- Global variable to control settings icon visibility in subscripts
-_G.GozzimHUD_ShowSettingsIcon = true
+-- Global variables to control icon visibility
+_G.GozzimHUD_ShowMasterIcons = true -- Controls Main Settings & Char Info
+_G.GozzimHUD_ShowSettingsIcon = true -- Controls Subscript Icons (derived from Master + Subscript setting)
+
+-- Internal user preference for subscript icons specifically
+local subscriptIconsSetting = true
 
 -- List of all manageable scripts.
 local allScripts = {
@@ -37,6 +43,8 @@ local allScripts = {
 }
 
 -- Runtime state variables
+local configToggleIcon = nil
+local configToggleText = nil
 local settingsIcon = nil
 local settingsModal = nil
 local charInfoModule = nil
@@ -47,8 +55,39 @@ for _, script in ipairs(allScripts) do
     script.isLoaded = false
 end
 
--- Forward declarations for script loading functions
-local loadScript, unloadScript
+-- Forward declarations
+local loadScript, unloadScript, openSettingsModal
+
+-- Helper to update visibility of Settings and Char Info icons
+local function updateIconVisibility()
+    if settingsIcon then
+        if _G.GozzimHUD_ShowMasterIcons then
+            settingsIcon:show()
+        else
+            settingsIcon:hide()
+        end
+    end
+
+    -- Trigger char info update if the module registered a global callback
+    if _G.CharInfo_UpdateIconVisibility then
+        _G.CharInfo_UpdateIconVisibility()
+    end
+end
+
+-- Helper to update the state of the toggle icon itself
+local function updateToggleIconState()
+    if configToggleIcon and configToggleText then
+        if _G.GozzimHUD_ShowMasterIcons then
+            configToggleIcon:setOpacity(1.0)
+            configToggleText:setText("Configs")
+            configToggleText:setColor(0, 255, 0) -- Green
+        else
+            configToggleIcon:setOpacity(0.6)
+            configToggleText:setText("Configs")
+            configToggleText:setColor(255, 102, 102) -- Red
+        end
+    end
+end
 
 local function getStorageFileName(scriptName)
     local worldName = Client.getWorldName()
@@ -66,7 +105,9 @@ local function saveScriptStates()
     for _, script in ipairs(allScripts) do
         states[script.name] = script.isLoaded
     end
-    states["GozzimHUD_ShowSettingsIcon"] = _G.GozzimHUD_ShowSettingsIcon
+
+    states["SubscriptIconsSetting"] = subscriptIconsSetting
+    states["MasterIconsSetting"] = _G.GozzimHUD_ShowMasterIcons
 
     local fileName = getStorageFileName("GozzimHUD")
     local filePath = Engine.getScriptsDirectory() .. "/" .. STORAGE_FOLDER .. fileName
@@ -86,9 +127,20 @@ local function loadScriptStates()
         file:close()
         local states = JSON.decode(content)
         if states then
-            if states["GozzimHUD_ShowSettingsIcon"] ~= nil then
-                _G.GozzimHUD_ShowSettingsIcon = states["GozzimHUD_ShowSettingsIcon"]
+            -- Load new distinct properties, or fallback to legacy variable if migrating
+            if states["SubscriptIconsSetting"] ~= nil then
+                subscriptIconsSetting = states["SubscriptIconsSetting"]
+            elseif states["GozzimHUD_ShowSettingsIcon"] ~= nil then
+                subscriptIconsSetting = states["GozzimHUD_ShowSettingsIcon"]
             end
+
+            if states["MasterIconsSetting"] ~= nil then
+                _G.GozzimHUD_ShowMasterIcons = states["MasterIconsSetting"]
+            end
+
+            -- Derive the actual subscript visibility based on both preferences
+            _G.GozzimHUD_ShowSettingsIcon = subscriptIconsSetting and _G.GozzimHUD_ShowMasterIcons
+
             for i, script in ipairs(allScripts) do
                 if states[script.name] and not script.isLoaded then
                     loadScript(i)
@@ -145,22 +197,40 @@ unloadScript = function(scriptIndex)
     print(string.format(">> Unloaded module: %s", script.name))
 end
 
--- Main function to open the settings panel.
-local openSettingsModal
+-- Central function to toggle config icons
+local function toggleConfigIcons()
+    _G.GozzimHUD_ShowMasterIcons = not _G.GozzimHUD_ShowMasterIcons
+
+    -- Subscripts are only visible if the master toggle AND their individual setting are ON
+    _G.GozzimHUD_ShowSettingsIcon = subscriptIconsSetting and _G.GozzimHUD_ShowMasterIcons
+
+    updateIconVisibility()
+    updateToggleIconState()
+
+    -- Reload active scripts that use settings icons so they update
+    for i, script in ipairs(allScripts) do
+        if script.isLoaded and (script.name == "Autoshoot" or script.name == "Haste" or script.name == "SSA/Might") then
+            unloadScript(i)
+            loadScript(i)
+        end
+    end
+    saveScriptStates()
+end
 
 -- Callback for modal button clicks.
 local function onModalButtonClick(buttonIndex)
     if buttonIndex == 0 then
-        _G.GozzimHUD_ShowSettingsIcon = not _G.GozzimHUD_ShowSettingsIcon
+        -- Toggle ONLY the subscript icons setting
+        subscriptIconsSetting = not subscriptIconsSetting
+        _G.GozzimHUD_ShowSettingsIcon = subscriptIconsSetting and _G.GozzimHUD_ShowMasterIcons
 
-        -- Reload active scripts that use settings icons so they update
+        -- Reload active scripts that use subscript settings icons
         for i, script in ipairs(allScripts) do
             if script.isLoaded and (script.name == "Autoshoot" or script.name == "Haste" or script.name == "SSA/Might") then
                 unloadScript(i)
                 loadScript(i)
             end
         end
-
         openSettingsModal()
         return
     elseif buttonIndex == #allScripts + 1 then
@@ -191,7 +261,8 @@ openSettingsModal = function()
 
     settingsModal = CustomModalWindow("GozzimHUD Scripts", "Toggle scripts on or off.")
 
-    local iconStatus = _G.GozzimHUD_ShowSettingsIcon and '<font color="#00FF00">ON</font>' or '<font color="#FF6666">OFF</font>'
+    -- The text in the modal represents the subscript preference
+    local iconStatus = subscriptIconsSetting and '<font color="#00FF00">ON</font>' or '<font color="#FF6666">OFF</font>'
     settingsModal:addButton("ConfigIcons: " .. iconStatus)
 
     for _, script in ipairs(allScripts) do
@@ -213,12 +284,24 @@ local function loadController()
     end
 
     print(">> GozzimHUD Controller loading...")
-    settingsIcon = HUD.new(ICON_POSITION_X, ICON_POSITION_Y, SETTINGS_ICON_ID, true)
+
+    -- Load the new Config Toggle Icon and its text
+    configToggleIcon = HUD.new(ICON_POSITION_X, ICON_POSITION_Y, CONFIG_TOGGLE_ICON_ID, true)
+    configToggleText = HUD.new(ICON_POSITION_X, ICON_POSITION_Y + 34, "ConfigIcons Enabled", true)
+
+    if configToggleIcon then
+        configToggleIcon:setCallback(toggleConfigIcons)
+    end
+
+    -- Load the Main Settings Icon (Moved to the right by SPACING)
+    settingsIcon = HUD.new(ICON_POSITION_X + SPACING, ICON_POSITION_Y, SETTINGS_ICON_ID, true)
     if settingsIcon then
         settingsIcon:setCallback(openSettingsModal)
     end
 
-    loadScriptStates() -- Load states first so we get GozzimHUD_ShowSettingsIcon
+    loadScriptStates() -- Load states first so we get states synchronized
+    updateIconVisibility() -- Ensure correct initial visibility
+    updateToggleIconState() -- Ensure initial text and opacity are correct
 
     -- Load the Char Info script by default
     local charInfoPath = Engine.getScriptsDirectory() .. "/" .. SCRIPTS_FOLDER .. "char_info.lua.script"
@@ -287,6 +370,16 @@ local function unloadController()
         charInfoModule = nil
     end
 
+    if configToggleIcon then
+        configToggleIcon:destroy()
+        configToggleIcon = nil
+    end
+
+    if configToggleText then
+        configToggleText:destroy()
+        configToggleText = nil
+    end
+
     if settingsIcon then
         settingsIcon:destroy()
         settingsIcon = nil
@@ -296,6 +389,8 @@ local function unloadController()
         settingsModal:destroy()
         settingsModal = nil
     end
+
+    _G.CharInfo_UpdateIconVisibility = nil
 
     print(">> GozzimHUD Controller unloaded successfully.")
 end

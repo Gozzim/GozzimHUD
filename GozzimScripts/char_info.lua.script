@@ -1,6 +1,6 @@
 local gameWindow = Client.getGameWindowDimensions()
 local ICON_ITEM_ID = 4843
-local ICON_POSITION_X = 50
+local ICON_POSITION_X = 90
 local ICON_POSITION_Y = gameWindow.height - 42 -- 32px icon height + 10px margin
 local LIST_MARGIN_X = -10
 local LIST_START_Y = 20
@@ -1292,6 +1292,20 @@ local function load()
         settingsIcon:setCallback(openSettingsModal)
     end
 
+    -- Hook for GozzimHUD.lua to trigger when the toggle button is pressed
+    _G.CharInfo_UpdateIconVisibility = function()
+        if not settingsIcon then
+            return
+        end
+        if _G.GozzimHUD_ShowMasterIcons then
+            settingsIcon:show()
+        else
+            settingsIcon:hide()
+        end
+    end
+    -- Set the initial visibility
+    _G.CharInfo_UpdateIconVisibility()
+
     Game.registerEvent(Game.Events.TALK, onPlayerTalk)
     Game.registerEvent(Game.Events.TEXT_MESSAGE, onServerLogMessage)
     Timer.new("PlayerInfoTimer", updatePlayerDisplays, SCAN_INTERVAL_MS, true)
@@ -1324,6 +1338,9 @@ local function unload()
         settingsIcon:destroy()
         settingsIcon = nil
     end
+
+    -- Clear hook
+    _G.CharInfo_UpdateIconVisibility = nil
 
     -- Destroy settings modal if open
     if mainModal then
