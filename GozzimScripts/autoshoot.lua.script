@@ -159,12 +159,18 @@ local function load()
     currentIconId = initialRuneId
 
     runeMaxIcon = HUD.new(ICON_POSITION_X, ICON_POSITION_Y, currentIconId, true)
-    cogIcon = HUD.new(ICON_POSITION_X + 13, ICON_POSITION_Y + 18, COG_ICON_ID, true)
+    
+    if _G.GozzimHUD_ShowSettingsIcon then
+        cogIcon = HUD.new(ICON_POSITION_X + 13, ICON_POSITION_Y + 18, COG_ICON_ID, true)
+    end
 
-    if runeMaxIcon and cogIcon then
+    if runeMaxIcon then
         runeMaxIcon:setCallback(toggleRuneMax)
-        cogIcon:setCallback(openRuneSelectionModal)
-        cogIcon:setScale(0.6)
+        
+        if cogIcon then
+            cogIcon:setCallback(openRuneSelectionModal)
+            cogIcon:setScale(0.6)
+        end
 
         updateIconState()
         Timer.new("RuneMaxSyncTimer", updateIconState, SYNC_INTERVAL_MS, true)

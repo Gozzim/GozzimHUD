@@ -253,17 +253,22 @@ local function load()
 
     -- Create the HUD icon using the item ID and position from the config.
     hasteIcon = HUD.new(ICON_POSITION_X, ICON_POSITION_Y, ICON_ITEM_ID, true)
-    cogIcon = HUD.new(ICON_POSITION_X + 16, ICON_POSITION_Y + 18, COG_ICON_ID, true)
+    
+    if _G.GozzimHUD_ShowSettingsIcon then
+        cogIcon = HUD.new(ICON_POSITION_X + 16, ICON_POSITION_Y + 18, COG_ICON_ID, true)
+    end
 
-    if hasteIcon and cogIcon then
+    if hasteIcon then
         -- Set the icon's initial state to OFF (semi-transparent).
         hasteIcon:setOpacity(OPACITY_ON)
         
         -- Assign our toggleHaste function to be called when the icon is clicked.
         hasteIcon:setCallback(toggleHaste)
         
-        cogIcon:setCallback(openSettingsModal)
-        cogIcon:setScale(0.6)
+        if cogIcon then
+            cogIcon:setCallback(openSettingsModal)
+            cogIcon:setScale(0.6)
+        end
 
         -- Create a recurring timer that calls castHasteIfNeeded.
         Timer.new("HasteTimer", castHasteIfNeeded, RECAST_INTERVAL_MS, true)

@@ -507,19 +507,32 @@ local function load()
 
     combinedIcon = HUD.new(ICON_1_X, ICON_ROW_Y, COMBINED_ICON_ID, true)
     ssaIcon = HUD.new(ICON_2_X, ICON_ROW_Y, SSA_ONLY_ICON_ID, true)
-    ssaCogIcon = HUD.new(ICON_2_X + 18, ICON_ROW_Y + 18, COG_ICON_ID, true)
+    
+    if _G.GozzimHUD_ShowSettingsIcon then
+        ssaCogIcon = HUD.new(ICON_2_X + 18, ICON_ROW_Y + 18, COG_ICON_ID, true)
+    end
+    
     mightRingIcon = HUD.new(ICON_3_X, ICON_ROW_Y, RING_ONLY_ICON_ID, true)
-    mightRingCogIcon = HUD.new(ICON_3_X + 16, ICON_ROW_Y + 16, COG_ICON_ID, true)
+    
+    if _G.GozzimHUD_ShowSettingsIcon then
+        mightRingCogIcon = HUD.new(ICON_3_X + 16, ICON_ROW_Y + 16, COG_ICON_ID, true)
+    end
 
-    if combinedIcon and ssaIcon and mightRingIcon and ssaCogIcon and mightRingCogIcon then
+    if combinedIcon and ssaIcon and mightRingIcon then
         combinedIcon:setCallback(toggleCombinedMaster)
         ssaIcon:setCallback(toggleSsaMaster)
-        ssaCogIcon:setCallback(openSsaConfigModal)
-        ssaCogIcon:setScale(0.6)
+        
+        if ssaCogIcon then
+            ssaCogIcon:setCallback(openSsaConfigModal)
+            ssaCogIcon:setScale(0.6)
+        end
 
         mightRingIcon:setCallback(toggleRingMaster)
-        mightRingCogIcon:setCallback(openMightRingConfigModal)
-        mightRingCogIcon:setScale(0.6)
+        
+        if mightRingCogIcon then
+            mightRingCogIcon:setCallback(openMightRingConfigModal)
+            mightRingCogIcon:setScale(0.6)
+        end
 
         updateAllIconStatesMaster()
 

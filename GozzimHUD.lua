@@ -12,6 +12,9 @@ local gameWindow = Client.getGameWindowDimensions()
 local ICON_POSITION_X = 10
 local ICON_POSITION_Y = gameWindow.height - 42
 
+-- Global variable to control settings icon visibility in subscripts
+_G.GozzimHUD_ShowSettingsIcon = true
+
 -- List of all manageable scripts.
 local allScripts = {
     { name = "Eat", file = "eat.lua.script", defaultState = true },
@@ -63,6 +66,7 @@ local function saveScriptStates()
     for _, script in ipairs(allScripts) do
         states[script.name] = script.isLoaded
     end
+    states["GozzimHUD_ShowSettingsIcon"] = _G.GozzimHUD_ShowSettingsIcon
 
     local fileName = getStorageFileName("GozzimHUD")
     local filePath = Engine.getScriptsDirectory() .. "/" .. STORAGE_FOLDER .. fileName
@@ -82,6 +86,9 @@ local function loadScriptStates()
         file:close()
         local states = JSON.decode(content)
         if states then
+            if states["GozzimHUD_ShowSettingsIcon"] ~= nil then
+                _G.GozzimHUD_ShowSettingsIcon = states["GozzimHUD_ShowSettingsIcon"]
+            end
             for i, script in ipairs(allScripts) do
                 if states[script.name] and not script.isLoaded then
                     loadScript(i)
@@ -94,7 +101,6 @@ local function loadScriptStates()
     end
     return false -- No states file
 end
-
 
 -- Tries to load a script module by its file name.
 loadScript = function(scriptIndex)
@@ -145,6 +151,19 @@ local openSettingsModal
 -- Callback for modal button clicks.
 local function onModalButtonClick(buttonIndex)
     if buttonIndex == #allScripts then
+        _G.GozzimHUD_ShowSettingsIcon = not _G.GozzimHUD_ShowSettingsIcon
+        
+        -- Reload active scripts that use settings icons so they update
+        for i, script in ipairs(allScripts) do
+            if script.isLoaded and (script.name == "Autoshoot" or script.name == "Haste" or script.name == "SSA/Might") then
+                unloadScript(i)
+                loadScript(i)
+            end
+        end
+        
+        openSettingsModal()
+        return
+    elseif buttonIndex == #allScripts + 1 then
         if settingsModal then
             saveScriptStates()
             settingsModal:destroy()
@@ -178,17 +197,27 @@ openSettingsModal = function()
         settingsModal:addButton(buttonText)
     end
 
+    local iconStatus = _G.GozzimHUD_ShowSettingsIcon and '<font color="#00FF00">ON</font>' or '<font color="#FF6666">OFF</font>'
+    settingsModal:addButton("Settings Icons: " .. iconStatus)
     settingsModal:addButton("Save & Close")
     settingsModal:setCallback(onModalButtonClick)
 end
 
 -- Main load function for the entire HUD controller.
 local function loadController()
+    if not Player.hasReceivedBasicData() then
+        print(">> Waiting for basic player data...")
+        Timer.new("GozzimHUD_LoadRetry", loadController, 500, false)
+        return
+    end
+
     print(">> GozzimHUD Controller loading...")
     settingsIcon = HUD.new(ICON_POSITION_X, ICON_POSITION_Y, SETTINGS_ICON_ID, true)
     if settingsIcon then
         settingsIcon:setCallback(openSettingsModal)
     end
+
+    loadScriptStates() -- Load states first so we get GozzimHUD_ShowSettingsIcon
 
     -- Load the Char Info script by default
     local charInfoPath = Engine.getScriptsDirectory() .. "/" .. SCRIPTS_FOLDER .. "char_info.lua.script"
@@ -204,22 +233,36 @@ local function loadController()
         print("!! ERROR loading module char_info.lua.script: " .. tostring(err))
     end
 
-    if not loadScriptStates() then
-        -- Determine vocation for default script loading
-        local player = Creature(Player.getId())
-        local vocation = player and player:getVocation() or Enums.Vocations.NONE
-        local isKnight = (vocation == Enums.Vocations.KNIGHT or vocation == Enums.Vocations.ELITE_KNIGHT)
+    -- Determine vocation for default script loading if states weren't loaded properly
+    local player = Creature(Player.getId())
+    local vocation = player and player:getVocation() or Enums.Vocations.NONE
+    local isKnight = (vocation == Enums.Vocations.KNIGHT or vocation == Enums.Vocations.ELITE_KNIGHT)
 
-        for i, script in ipairs(allScripts) do
+    for i, script in ipairs(allScripts) do
+        -- Only load if it's not already loaded (might have been loaded by loadScriptStates)
+        if not script.isLoaded then
             local shouldLoad = script.defaultState
-
             if script.name == "Rage" then
                 shouldLoad = isKnight
             elseif script.name == "Autoshoot" then
                 shouldLoad = not isKnight
             end
 
-            if shouldLoad then
+            -- If there was no saved state, load the default
+            local hasSavedState = false
+            local fileName = getStorageFileName("GozzimHUD")
+            local filePath = Engine.getScriptsDirectory() .. "/" .. STORAGE_FOLDER .. fileName
+            local file = io.open(filePath, "r")
+            if file then
+                local content = file:read("*a")
+                file:close()
+                local states = JSON.decode(content)
+                if states and states[script.name] ~= nil then
+                    hasSavedState = true
+                end
+            end
+
+            if not hasSavedState and shouldLoad then
                 loadScript(i)
             end
         end
