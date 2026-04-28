@@ -122,27 +122,32 @@ end
 
 -- This function is called when a button in the settings modal is clicked.
 local function onSettingsModalClick(buttonIndex)
-    if not settingsModal then return end
+    if not settingsModal then
+        return
+    end
 
     local playerCreature = Creature(Player.getId())
     local currentVocation = playerCreature and playerCreature:getVocation() or Enums.Vocations.NONE
     local availableSpells = AVAILABLE_SPELLS[currentVocation]
 
-    if buttonIndex == 1 then -- "<" (Previous Spell)
+    if buttonIndex == 1 then
+        -- "<" (Previous Spell)
         selectedSpellIndex = selectedSpellIndex - 1
         if selectedSpellIndex < 1 then
             selectedSpellIndex = #availableSpells
         end
         saveSettings()
         openSettingsModal()
-    elseif buttonIndex == 3 then -- ">" (Next Spell)
+    elseif buttonIndex == 3 then
+        -- ">" (Next Spell)
         selectedSpellIndex = selectedSpellIndex + 1
         if selectedSpellIndex > #availableSpells then
             selectedSpellIndex = 1
         end
         saveSettings()
         openSettingsModal()
-    elseif buttonIndex == 5 then -- ON/OFF PZ Cast
+    elseif buttonIndex == 5 then
+        -- ON/OFF PZ Cast
         isCastInPZ = not isCastInPZ
         saveSettings()
         openSettingsModal()
@@ -176,7 +181,7 @@ openSettingsModal = function()
     settingsModal:addButton(">")
     settingsModal:addButton("PZ Cast")
     settingsModal:addButton(pzStatus)
-    
+
     settingsModal:addButton("Save & Close")
     settingsModal:setCallback(function(btnIndex)
         if btnIndex == 6 then
@@ -215,11 +220,13 @@ local function castHasteIfNeeded()
 
     -- ## Vocation Check: Get the player's creature object to find the vocation ##
     local playerCreature = Creature(Player.getId())
-    if not playerCreature then return end
-    
+    if not playerCreature then
+        return
+    end
+
     local currentVocation = playerCreature:getVocation()
     local availableSpells = AVAILABLE_SPELLS[currentVocation]
-    
+
     -- Ensure selected index is valid for current vocation
     if selectedSpellIndex < 1 or selectedSpellIndex > #availableSpells then
         selectedSpellIndex = 1
@@ -253,7 +260,7 @@ local function load()
 
     -- Create the HUD icon using the item ID and position from the config.
     hasteIcon = HUD.new(ICON_POSITION_X, ICON_POSITION_Y, ICON_ITEM_ID, true)
-    
+
     if _G.GozzimHUD_ShowSettingsIcon then
         cogIcon = HUD.new(ICON_POSITION_X + 16, ICON_POSITION_Y + 18, COG_ICON_ID, true)
     end
@@ -261,10 +268,10 @@ local function load()
     if hasteIcon then
         -- Set the icon's initial state to OFF (semi-transparent).
         hasteIcon:setOpacity(OPACITY_ON)
-        
+
         -- Assign our toggleHaste function to be called when the icon is clicked.
         hasteIcon:setCallback(toggleHaste)
-        
+
         if cogIcon then
             cogIcon:setCallback(openSettingsModal)
             cogIcon:setScale(0.6)

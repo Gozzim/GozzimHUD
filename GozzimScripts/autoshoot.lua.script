@@ -48,7 +48,9 @@ local updateIconState
 
 -- This function is called when a button in the rune selection modal is clicked.
 local function onRuneModalClick(buttonIndex)
-    if not runeSelectionModal then return end
+    if not runeSelectionModal then
+        return
+    end
 
     local availableRunesInInventory = {}
     local inventoryItems = Game.getInventoryItems()
@@ -159,14 +161,14 @@ local function load()
     currentIconId = initialRuneId
 
     runeMaxIcon = HUD.new(ICON_POSITION_X, ICON_POSITION_Y, currentIconId, true)
-    
+
     if _G.GozzimHUD_ShowSettingsIcon then
         cogIcon = HUD.new(ICON_POSITION_X + 13, ICON_POSITION_Y + 18, COG_ICON_ID, true)
     end
 
     if runeMaxIcon then
         runeMaxIcon:setCallback(toggleRuneMax)
-        
+
         if cogIcon then
             cogIcon:setCallback(openRuneSelectionModal)
             cogIcon:setScale(0.6)
