@@ -68,8 +68,7 @@
 - Automatically uses the `Exiva` spell in an interval to find other players.
 - Uses the last exiva target or alternatively the last attacked target.
 - To manually configure target, manually exiva a player once, then activate.
-- Only casts the spell if the target is not on your screen.
-- The Dracola's Eye button <img style="vertical-align: middle;" src="https://github.com/user-attachments/assets/9b5ff0e9-702f-4802-9cf5-07706d9631fd"> enforces this even when the player is standing next to you.
+- Configurable `Target Selection`, `Cast Interval` and `Cast Modes`
 
 ### <img style="float: left; margin-right: 8px; margin-top: -8px;" src="https://github.com/user-attachments/assets/eb50b967-f1f0-46a8-ac52-1bebac05e295"/> Character Info
 - Displays information about players, monsters and NPCs on your screen.
