@@ -83,7 +83,7 @@ local function updateToggleIconState()
             configToggleText:setText("Configs")
             configToggleText:setColor(0, 255, 0) -- Green
         else
-            configToggleIcon:setOpacity(0.6)
+            configToggleIcon:setOpacity(0.5)
             configToggleText:setText("Configs")
             configToggleText:setColor(255, 102, 102) -- Red
         end
