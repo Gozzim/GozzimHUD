@@ -48,6 +48,11 @@
 - Automatically equips a Stone Skin Amulet and a Might Ring.
 - Replaces Amulet and Ring when charges are used up automatically.
 
+### <img style="float: left; margin-right: 8px; margin-top: -8px;" src="https://github.com/user-attachments/assets/bc261873-4ed2-41ad-be2d-0899cce3fad1"/> Anti-Drunk
+- Automatically equips a Dwarven Ring when drunk.
+- Replaces Ring automatically when it runs out.
+- Re-equips original ring when deactivated or out of dwarven rings.
+
 ### <img style="float: left; margin-right: 8px; margin-top: -7px;" src="https://github.com/user-attachments/assets/0e8cf0ab-377e-4054-b2e9-fd14d48967a5"/> Auto Loot
 - Automatically loots nearby dead creatures.
 - When enabled, always loots whenever you get experience.

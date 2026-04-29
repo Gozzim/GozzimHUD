@@ -1,0 +1,152 @@
+-- Anti-Drunk Script for Zerobot
+-- Automatically equips a dwarven ring when drunk. Restores the originally recorded ring when disabled.
+
+-- #################### CONFIGURATION ####################
+-- How often the script checks your state (in milliseconds).
+local CHECK_INTERVAL_MS = 200
+
+-- Item IDs
+local ICON_ITEM_ID = 3097 -- Dwarven Ring
+local DWARVEN_RING_ID = 3097          -- ID of a new dwarven ring
+local EQUIPPED_DWARVEN_RING_ID = 3099 -- ID of a equipped dwarven ring
+
+-- Position of the icon on the screen.
+-- Placed at Y = 320 to sit directly below the Auto SSA/Might Ring row (which is Y = 280).
+local ICON_POSITION_X = 10
+local ICON_POSITION_Y = 320
+
+-- Opacity for the icon when ON vs OFF.
+local OPACITY_ON = 1.0  -- Fully visible
+local OPACITY_OFF = 0.5 -- Semi-transparent
+-- ######################################################
+
+-- State tracking variables
+local isAntiDrunkActive = false
+local antiDrunkIcon = nil
+local originalRingId = nil
+
+-- Helper function to safely restore the ring state from when the script was turned ON
+local function restoreOriginalRing()
+    local currentRingInfo = Player.getInventorySlot(Enums.InventorySlot.CONST_SLOT_RING)
+    local currentRingId = currentRingInfo and currentRingInfo.id or 0
+
+    if originalRingId and originalRingId > 0 then
+        -- Only equip the original ring if we aren't ALREADY wearing it
+        if currentRingId ~= originalRingId then
+            Game.equipItem(originalRingId, 0)
+        end
+    else
+        -- If we recorded 0 (no ring equipped originally), we should only take off the current ring
+        -- IF it is one of our dwarven rings. We don't want to take off a manually equipped ring.
+        if currentRingId == DWARVEN_RING_ID or currentRingId == EQUIPPED_DWARVEN_RING_ID then
+            Game.equipItem(currentRingId, 0)
+        end
+    end
+    originalRingId = nil
+end
+
+-- This function is called when the HUD icon is clicked.
+local function toggleAntiDrunk()
+    isAntiDrunkActive = not isAntiDrunkActive
+    if isAntiDrunkActive then
+        -- Record the currently equipped ring ID exactly when toggling ON
+        local currentRingInfo = Player.getInventorySlot(Enums.InventorySlot.CONST_SLOT_RING)
+        local currentId = currentRingInfo and currentRingInfo.id or 0
+
+        -- If we toggle it on while already wearing a dwarven ring, record 'no ring' as original
+        if currentId == DWARVEN_RING_ID or currentId == EQUIPPED_DWARVEN_RING_ID then
+            originalRingId = nil
+        else
+            originalRingId = currentId
+        end
+
+        antiDrunkIcon:setOpacity(OPACITY_ON)
+        print(">> Anti-Drunk ENABLED.")
+    else
+        antiDrunkIcon:setOpacity(OPACITY_OFF)
+        print(">> Anti-Drunk DISABLED.")
+
+        -- Equip the recorded original ring when toggled OFF
+        restoreOriginalRing()
+    end
+end
+
+-- Main polling loop for the Anti-Drunk logic
+local function antiDrunkLoop()
+    if not isAntiDrunkActive then
+        return
+    end
+
+    -- Check if the player is currently drunk
+    local isDrunk = Player.getState(Enums.States.STATE_DRUNK)
+
+    if isDrunk then
+        local currentRingInfo = Player.getInventorySlot(Enums.InventorySlot.CONST_SLOT_RING)
+        local currentRingId = currentRingInfo and currentRingInfo.id or 0
+
+        -- PREVENT RACE CONDITION:
+        -- If we are already wearing the dwarven ring, the server just hasn't removed the drunk state yet.
+        -- Do nothing and wait for the state to clear.
+        if currentRingId == DWARVEN_RING_ID or currentRingId == EQUIPPED_DWARVEN_RING_ID then
+            return
+        end
+
+        -- Check for both brand new rings and partially used rings in the inventory
+        local hasNew = Game.getItemCount(DWARVEN_RING_ID) > 0
+        local hasUsed = Game.getItemCount(EQUIPPED_DWARVEN_RING_ID) > 0
+
+        if hasNew or hasUsed then
+            -- Prioritize equipping a partially used ring to save backpack space
+            local targetDwarvenId = hasUsed and EQUIPPED_DWARVEN_RING_ID or DWARVEN_RING_ID
+            Game.equipItem(targetDwarvenId, 0)
+        else
+            -- Out of dwarven rings. Restore the original ring BEFORE turning off.
+            print(">> Out of Dwarven Rings! Disabling Anti-Drunk.")
+            restoreOriginalRing()
+
+            -- Turn off the script to prevent spamming
+            isAntiDrunkActive = false
+            if antiDrunkIcon then
+                antiDrunkIcon:setOpacity(OPACITY_OFF)
+            end
+        end
+    end
+end
+
+local function load()
+    antiDrunkIcon = HUD.new(ICON_POSITION_X, ICON_POSITION_Y, ICON_ITEM_ID, true)
+
+    if antiDrunkIcon then
+        antiDrunkIcon:setOpacity(OPACITY_OFF)
+        antiDrunkIcon:setCallback(toggleAntiDrunk)
+
+        -- Create a recurring timer that runs the main logic loop
+        Timer.new("AntiDrunkTimer", antiDrunkLoop, CHECK_INTERVAL_MS, true)
+
+        -- Hook into GozzimHUD master visibility setting
+        if _G.GozzimHUD_ShowMasterIcons ~= nil then
+            if not _G.GozzimHUD_ShowMasterIcons then
+                antiDrunkIcon:hide()
+            end
+        end
+
+        print(">> Anti-Drunk HUD loaded.")
+    else
+        print(">> ERROR: Failed to create Anti-Drunk HUD.")
+    end
+end
+
+local function unload()
+    if antiDrunkIcon then
+        antiDrunkIcon:destroy()
+        antiDrunkIcon = nil
+    end
+    destroyTimer("AntiDrunkTimer")
+
+    print(">> Anti-Drunk HUD unloaded.")
+end
+
+return {
+    load = load,
+    unload = unload
+}

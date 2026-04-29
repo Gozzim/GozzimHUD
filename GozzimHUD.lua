@@ -40,6 +40,7 @@ local allScripts = {
     { name = "SSA/Might", file = "auto_ssa_might.lua.script", defaultState = true },
     { name = "Effects", file = "toggle_effects.lua.script", defaultState = true },
     { name = "Exercise", file = "training.lua.script", defaultState = true },
+    { name = "Anti-Drunk", file = "anti_drunk.lua.script", defaultState = true },
 }
 
 -- Runtime state variables
