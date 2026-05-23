@@ -653,7 +653,7 @@ local function updatePlayerDisplays()
                     if name then
                         local upperName = name:upper()
                         -- Exception for GM/GOD/CM
-                        if upperName:sub(1, 2) == "GM" or upperName:sub(1, 3) == "GOD" or upperName:sub(1, 2) == "CM" then
+                        if upperName:sub(1, 2) == "GM" or upperName:sub(1, 3) == "GOD" or upperName:sub(1, 2) == "CM" or upperName:sub(1, 2) == "INSPECTOR" then
                             -- Skip this player
                         else
                             local pos = creature:getPosition()
