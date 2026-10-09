@@ -1,0 +1,3 @@
+# GitHub Linguist and Git diff language associations
+*.script text linguist-language=Lua diff=lua
+*.lua.script text linguist-language=Lua diff=lua
